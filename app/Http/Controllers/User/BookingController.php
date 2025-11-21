@@ -1,4 +1,5 @@
 <?php
+// app/Http/Controllers/User/BookingController.php
 
 namespace App\Http\Controllers\User;
 
@@ -21,9 +22,11 @@ class BookingController extends Controller
     {
         // Eager load tipeKamar dan fasilitas default-nya
         $kamar->load('tipeKamar.fasilitas');
-        // Fasilitas tambahan tidak lagi diperlukan di sini.
 
-        return view('user.booking', compact('kamar'));
+        // NEW: Ambil semua fasilitas yang tersedia (untuk opsi tambahan)
+        $allFasilitas = Fasilitas::all();
+
+        return view('user.booking', compact('kamar', 'allFasilitas'));
     }
 
     public function store(Request $request)
@@ -33,7 +36,9 @@ class BookingController extends Controller
             'check_in_date' => 'required|date|after_or_equal:today',
             'check_out_date' => 'required|date|after:check_in_date',
             'jumlah_tamu' => 'required|integer|min:1',
-            // Penghapusan validasi fasilitas_ids
+            // NEW: Validasi untuk fasilitas tambahan
+            'fasilitas_tambahan' => 'nullable|array',
+            'fasilitas_tambahan.*' => 'exists:fasilitas,id_fasilitas',
         ]);
 
         $kamar = Kamar::findOrFail($request->kamar_id);
@@ -50,17 +55,30 @@ class BookingController extends Controller
         $hargaPerMalam = $kamar->tipeKamar->harga_per_malam;
         $totalHarga = $hargaPerMalam * $durasiMenginap;
 
-        // NEW: Hitung biaya tambahan fasilitas default yang termasuk dalam Tipe Kamar
-        $fasilitasDefaultIds = [];
-        $biayaTambahanTotal = 0;
+        // Collect all facility IDs (default and selected additional)
+        $allFacilityIds = [];
 
+        // 1. Hitung biaya fasilitas default (sudah ada)
+        $biayaTambahanDefault = 0;
         foreach ($kamar->tipeKamar->fasilitas as $fasilitas) {
-            $biayaTambahanTotal += $fasilitas->biaya_tambahan;
-            $fasilitasDefaultIds[] = $fasilitas->id_fasilitas;
+            $biayaTambahanDefault += $fasilitas->biaya_tambahan;
+            $allFacilityIds[] = $fasilitas->id_fasilitas;
         }
+        $totalHarga += $biayaTambahanDefault;
 
-        // Tambahkan biaya fasilitas default satu kali (biaya fasilitas TIDAK dikalikan durasi menginap)
-        $totalHarga += $biayaTambahanTotal;
+        // 2. NEW: Hitung biaya fasilitas tambahan yang dipilih pengguna
+        $selectedAdditionalFasilitasIds = $request->input('fasilitas_tambahan', []);
+        $additionalFasilitas = Fasilitas::whereIn('id_fasilitas', $selectedAdditionalFasilitasIds)->get();
+
+        $biayaTambahanSelected = 0;
+        foreach ($additionalFasilitas as $fasilitas) {
+            $biayaTambahanSelected += $fasilitas->biaya_tambahan;
+            $allFacilityIds[] = $fasilitas->id_fasilitas; // Tambahkan ID ke daftar total
+        }
+        $totalHarga += $biayaTambahanSelected;
+
+        // Pastikan tidak ada ID fasilitas yang sama terlampir dua kali
+        $allUniqueFacilityIds = array_unique($allFacilityIds);
 
         $pemesanan = Pemesanan::create([
             'user_id' => Auth::id(),
@@ -72,10 +90,9 @@ class BookingController extends Controller
             'status_pemesanan' => 'pending',
         ]);
 
-        // NEW: Lampirkan fasilitas default ke pemesanan secara otomatis
-        // Ini memastikan histori pemesanan tetap mencatat fasilitas apa yang didapatkan
-        if (!empty($fasilitasDefaultIds)) {
-            $pemesanan->fasilitas()->attach($fasilitasDefaultIds);
+        // NEW: Lampirkan SEMUA fasilitas (default + tambahan) ke pemesanan
+        if (!empty($allUniqueFacilityIds)) {
+            $pemesanan->fasilitas()->attach($allUniqueFacilityIds);
         }
 
         return redirect()->route('dashboard')->with('success', 'Pemesanan kamar berhasil dibuat! Total harga: Rp ' . number_format($totalHarga, 2, ',', '.'));

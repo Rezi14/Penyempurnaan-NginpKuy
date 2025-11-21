@@ -88,7 +88,40 @@
                                     <input type="number" class="form-control" id="jumlah_tamu" name="jumlah_tamu" value="{{ old('jumlah_tamu', 1) }}" min="1" required>
                                 </div>
 
-                                {{-- PENGHAPUSAN: Bagian untuk memilih fasilitas telah dihapus --}}
+                                {{-- NEW: Bagian untuk memilih fasilitas tambahan (difilter agar tidak menampilkan fasilitas default) --}}
+                                @php
+                                    // Ambil ID fasilitas default dari tipe kamar
+                                    $defaultFasilitasIds = $kamar->tipeKamar->fasilitas->pluck('id_fasilitas')->toArray();
+                                    // Filter fasilitas yang BUKAN default
+                                    $fasilitasTambahan = $allFasilitas->filter(function ($fasilitas) use ($defaultFasilitasIds) {
+                                        return !in_array($fasilitas->id_fasilitas, $defaultFasilitasIds);
+                                    });
+                                @endphp
+
+                                @if ($fasilitasTambahan->isNotEmpty())
+                                    <div class="mb-4 pt-3 border-top">
+                                        <h5 class="mb-3">Pilih Fasilitas Tambahan</h5>
+                                        <div class="row">
+                                            @foreach ($fasilitasTambahan as $fasilitas)
+                                                <div class="col-md-6 mb-2">
+                                                    <div class="form-check">
+                                                        <input class="form-check-input" type="checkbox" name="fasilitas_tambahan[]" value="{{ $fasilitas->id_fasilitas }}" id="fasilitas_{{ $fasilitas->id_fasilitas }}"
+                                                            {{ in_array($fasilitas->id_fasilitas, old('fasilitas_tambahan', [])) ? 'checked' : '' }}>
+                                                        <label class="form-check-label" for="fasilitas_{{ $fasilitas->id_fasilitas }}">
+                                                            {{ $fasilitas->nama_fasilitas }}
+                                                            @if($fasilitas->biaya_tambahan > 0)
+                                                                <small class="text-success">(+Rp {{ number_format($fasilitas->biaya_tambahan, 0, ',', '.') }})</small>
+                                                            @else
+                                                                <small class="text-muted">(Gratis)</small>
+                                                            @endif
+                                                        </label>
+                                                    </div>
+                                                </div>
+                                            @endforeach
+                                        </div>
+                                    </div>
+                                @endif
+                                {{-- END NEW --}}
 
                                 <div class="d-grid gap-2 mt-4">
                                     <button type="submit" class="btn btn-submit-booking">Konfirmasi Pemesanan</button>

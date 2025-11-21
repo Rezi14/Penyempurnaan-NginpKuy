@@ -40,6 +40,15 @@ Route::get('/', function () {
 // Jadikan /dashboard sebagai rute utama dengan nama 'dashboard'
 Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
+Route::get('/kontak', function () {
+    return view('user.pages.contact'); // Placeholder view
+})->name('contact');
+
+Route::get('/profile', function () {
+    return view('user.pages.profile'); // Placeholder view
+})->name('profile');
+
+
 // --- Rute Autentikasi (Login, Register, Logout) ---
 Route::controller(LoginController::class)->group(function () {
     Route::get('/login', 'showLoginForm')->name('login');
