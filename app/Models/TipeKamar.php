@@ -27,4 +27,11 @@ class TipeKamar extends Model
     {
         return $this->hasMany(Kamar::class, 'id_tipe_kamar', 'id_tipe_kamar');
     }
+
+    // NEW: Relasi baru untuk fasilitas default yang termasuk dalam tipe kamar
+    public function fasilitas()
+    {
+        return $this->belongsToMany(Fasilitas::class, 'tipe_kamar_fasilitas', 'tipe_kamar_id', 'fasilitas_id')
+                    ->withTimestamps();
+    }
 }

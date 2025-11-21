@@ -12,8 +12,8 @@ class DashboardController extends Controller
     public function index()
     {
         // Ambil data kamar yang status_kamar-nya true (tersedia)
-        // Dengan eager loading untuk relasi tipeKamar agar tidak terjadi N+1 query problem
-        $kamarsTersedia = Kamar::with('tipeKamar')
+        // Dengan eager loading untuk relasi tipeKamar dan fasilitas default-nya
+        $kamarsTersedia = Kamar::with('tipeKamar.fasilitas')
                                 ->where('status_kamar', true)
                                 ->orderBy('nomor_kamar', 'asc') // Filter kamar yang statusnya true
                                 ->get();

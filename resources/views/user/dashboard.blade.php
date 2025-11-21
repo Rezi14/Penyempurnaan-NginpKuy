@@ -47,6 +47,26 @@
                                         {{ $kamar->tipeKamar->nama_tipe_kamar }}</p>
                                     <p class="card-text mb-3 text-muted">{{ $kamar->tipeKamar->deskripsi }}</p>
 
+                                    {{-- NEW: Tampilkan fasilitas default --}}
+                                    @if($kamar->tipeKamar->fasilitas->isNotEmpty())
+                                        <div class="mb-3">
+                                            <strong>Fasilitas Termasuk:</strong>
+                                            <ul class="list-unstyled">
+                                                @foreach ($kamar->tipeKamar->fasilitas as $fasilitas)
+                                                    <li>
+                                                        {{ $fasilitas->nama_fasilitas }}
+                                                        @if($fasilitas->biaya_tambahan > 0)
+                                                            (Biaya: Rp {{ number_format($fasilitas->biaya_tambahan, 2, ',', '.') }})
+                                                        @endif
+                                                    </li>
+                                                @endforeach
+                                            </ul>
+                                        </div>
+                                    @else
+                                        <p class="text-muted">Tidak ada fasilitas tambahan yang termasuk.</p>
+                                    @endif
+                                    {{-- END NEW --}}
+
                                     <div class="room-price-info mt-auto">
                                         <strong>Harga/Malam:</strong> Rp
                                         {{ number_format($kamar->tipeKamar->harga_per_malam, 2, ',', '.') }}

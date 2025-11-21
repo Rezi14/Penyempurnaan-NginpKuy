@@ -43,6 +43,27 @@
                             <p><strong>Harga Per Malam:</strong> Rp {{ number_format($kamar->tipeKamar->harga_per_malam, 2, ',', '.') }}</p>
                             <p><strong>Deskripsi Tipe:</strong> {{ $kamar->tipeKamar->deskripsi }}</p>
                             <p><strong>Status:</strong> {{ $kamar->status_kamar ? 'Tersedia' : 'Tidak Tersedia' }}</p>
+
+                            {{-- NEW: Tampilkan fasilitas yang sudah termasuk dalam harga --}}
+                            @if($kamar->tipeKamar->fasilitas->isNotEmpty())
+                                <h5 class="mt-4">Fasilitas Termasuk:</h5>
+                                <ul class="list-unstyled">
+                                    @foreach ($kamar->tipeKamar->fasilitas as $fasilitas)
+                                        <li>
+                                            {{ $fasilitas->nama_fasilitas }}
+                                            @if($fasilitas->biaya_tambahan > 0)
+                                                (Biaya: Rp {{ number_format($fasilitas->biaya_tambahan, 2, ',', '.') }})
+                                            @endif
+                                        </li>
+                                    @endforeach
+                                    <li class="mt-2">
+                                        <small class="text-muted">Biaya fasilitas ini sudah termasuk dalam perhitungan total harga pemesanan.</small>
+                                    </li>
+                                </ul>
+                            @else
+                                <p class="text-muted mt-4">Tidak ada fasilitas tambahan yang termasuk.</p>
+                            @endif
+                            {{-- END NEW --}}
                         </div>
 
                         <hr class="my-4">
@@ -67,24 +88,7 @@
                                     <input type="number" class="form-control" id="jumlah_tamu" name="jumlah_tamu" value="{{ old('jumlah_tamu', 1) }}" min="1" required>
                                 </div>
 
-                                {{-- Bagian untuk memilih fasilitas --}}
-                                @if($fasilitasTersedia->isNotEmpty())
-                                    <div class="mb-4">
-                                        <label class="form-label">Pilih Fasilitas Tambahan:</label>
-                                        @foreach ($fasilitasTersedia as $fasilitas)
-                                            <div class="form-check">
-                                                <input class="form-check-input" type="checkbox" name="fasilitas_ids[]" value="{{ $fasilitas->id_fasilitas }}" id="fasilitas_{{ $fasilitas->id_fasilitas }}"
-                                                    {{ in_array($fasilitas->id_fasilitas, old('fasilitas_ids', [])) ? 'checked' : '' }}>
-                                                <label class="form-check-label" for="fasilitas_{{ $fasilitas->id_fasilitas }}">
-                                                    {{ $fasilitas->nama_fasilitas }} (Rp {{ number_format($fasilitas->biaya_tambahan, 2, ',', '.') }})
-                                                    @if($fasilitas->deskripsi)
-                                                        - {{ $fasilitas->deskripsi }}
-                                                    @endif
-                                                </label>
-                                            </div>
-                                        @endforeach
-                                    </div>
-                                @endif
+                                {{-- PENGHAPUSAN: Bagian untuk memilih fasilitas telah dihapus --}}
 
                                 <div class="d-grid gap-2 mt-4">
                                     <button type="submit" class="btn btn-submit-booking">Konfirmasi Pemesanan</button>

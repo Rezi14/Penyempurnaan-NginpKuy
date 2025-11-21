@@ -28,4 +28,11 @@ class Fasilitas extends Model
         return $this->belongsToMany(Pemesanan::class, 'pemesanan_fasilitas', 'fasilitas_id', 'pemesanan_id')
                     ->withTimestamps();
     }
+
+    // NEW: Relasi invers ke TipeKamar
+    public function tipeKamars()
+    {
+        return $this->belongsToMany(TipeKamar::class, 'tipe_kamar_fasilitas', 'fasilitas_id', 'tipe_kamar_id')
+                    ->withTimestamps();
+    }
 }
