@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     {{-- Judul akan diisi oleh halaman anak --}}
-    <title>@yield('title') - NginapKuy</title>
+    <title>@yield('title') - Roomify</title>
 
     {{-- Memanggil file CSS yang baru saja kita buat --}}
     <link href="{{ asset('css/auth.css') }}" rel="stylesheet">

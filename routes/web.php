@@ -20,6 +20,9 @@ use App\Http\Controllers\Admin\PemesananController;
 use App\Http\Controllers\Admin\PembayaranController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Admin\FasilitasController;
+use App\Http\Controllers\Auth\ForgotPasswordController;
+use App\Http\Controllers\Auth\ResetPasswordController;
+use App\Http\Controllers\Auth\VerificationController;
 
 /*
 |--------------------------------------------------------------------------
@@ -59,6 +62,25 @@ Route::controller(RegisterController::class)->group(function () {
     Route::post('/register', 'register');
 });
 
+// --- Rute Forgot & Reset Password ---
+Route::controller(ForgotPasswordController::class)->group(function () {
+    Route::get('/forgot-password', 'showLinkRequestForm')->name('password.request');
+    Route::post('/forgot-password', 'sendResetLinkEmail')->name('password.email');
+});
+
+Route::controller(ResetPasswordController::class)->group(function () {
+    Route::get('/reset-password/{token}', 'showResetForm')->name('password.reset');
+    Route::post('/reset-password', 'reset')->name('password.update');
+});
+
+// --- Rute Verifikasi Email ---
+Route::middleware('auth')->group(function () {
+    Route::controller(VerificationController::class)->group(function () {
+        Route::get('/email/verify', 'show')->name('verification.notice');
+        Route::get('/email/verify/{id}/{hash}', 'verify')->middleware(['signed'])->name('verification.verify');
+        Route::post('/email/verification-notification', 'resend')->middleware(['throttle:6,1'])->name('verification.send');
+    });
+});
 
 // --- Grup Rute yang MEMERLUKAN AUTENTIKASI (Login) ---
 Route::middleware('auth')->group(function () {
@@ -67,7 +89,7 @@ Route::middleware('auth')->group(function () {
     return view('user.pages.profile', ['user' => Illuminate\Support\Facades\Auth::user()]);})->name('profile');
 
     // Rute Pemesanan Kamar (User Biasa)
-    Route::controller(BookingController::class)->group(function () {
+    Route::controller(BookingController::class)->middleware('verified')->group(function () {
         Route::get('/pesan-kamar/{kamar}', 'showBookingForm')->name('booking.create');
         Route::post('/pesan-kamar', 'store')->name('booking.store');
     });

@@ -1,20 +1,13 @@
-{{-- 1. Gunakan layout "guest" yang sama --}}
 @extends('layouts.guest')
 
-{{-- 2. Set judul halaman --}}
 @section('title', 'Daftar Akun Baru')
 
-{{-- 3. Masukkan konten ke "slot" @yield('content') --}}
 @section('content')
-{{-- Gunakan class .auth-container yang sama --}}
 <div class="auth-container">
-    <h2>Daftar Akun Baru</h2>
-
-    @if (session('success'))
-        <div class="alert alert-success">
-            {{ session('success') }}
-        </div>
-    @endif
+    <div class="auth-header">
+        <h2>Buat Akun Baru</h2>
+        <p>Bergabunglah bersama kami sekarang</p>
+    </div>
 
     @if ($errors->any())
         <div class="alert alert-danger">
@@ -26,44 +19,64 @@
         </div>
     @endif
 
-    {{-- Ganti url() dengan route() agar konsisten --}}
     <form method="POST" action="{{ route('register') }}">
         @csrf
 
+        {{-- Nama Lengkap --}}
         <div class="form-group">
             <label for="name">Nama Lengkap</label>
-            <input type="text" id="name" name="name" value="{{ old('name') }}" required autofocus>
-            @error('name')
-                <span class="error-message">{{ $message }}</span>
-            @enderror
+            <input
+                type="text"
+                id="name"
+                name="name"
+                class="form-control"
+                value="{{ old('name') }}"
+                placeholder="Nama Lengkap Anda"
+                required
+                autofocus>
         </div>
 
+        {{-- Email --}}
         <div class="form-group">
-            <label for="email">Email</label>
-            <input type="email" id="email" name="email" value="{{ old('email') }}" required>
-            @error('email')
-                <span class="error-message">{{ $message }}</span>
-            @enderror
+            <label for="email">Alamat Email</label>
+            <input
+                type="email"
+                id="email"
+                name="email"
+                class="form-control"
+                value="{{ old('email') }}"
+                placeholder="contoh@email.com"
+                required>
         </div>
 
+        {{-- Password --}}
         <div class="form-group">
             <label for="password">Password</label>
-            <input type="password" id="password" name="password" required>
-            @error('password')
-                <span class="error-message">{{ $message }}</span>
-            @enderror
+            <input
+                type="password"
+                id="password"
+                name="password"
+                class="form-control"
+                placeholder="Minimal 8 karakter"
+                required>
         </div>
 
+        {{-- Konfirmasi Password --}}
         <div class="form-group">
             <label for="password_confirmation">Konfirmasi Password</label>
-            <input type="password" id="password_confirmation" name="password_confirmation" required>
+            <input
+                type="password"
+                id="password_confirmation"
+                name="password_confirmation"
+                class="form-control"
+                placeholder="Ulangi password Anda"
+                required>
         </div>
 
-        {{-- Tambahkan class .btn-register agar tombolnya berwarna hijau --}}
-        <button type="submit" class="btn-primary btn-register">Daftar</button>
+        <button type="submit" class="btn-primary">Daftar Sekarang</button>
 
-        <div class="text-center">
-            Sudah punya akun? <a href="{{ route('login') }}">Login di sini</a>
+        <div class="auth-footer">
+            Sudah punya akun? <a href="{{ route('login') }}">Login disini</a>
         </div>
     </form>
 </div>

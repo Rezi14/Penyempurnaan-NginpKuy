@@ -2,24 +2,23 @@
 
 namespace App\Models;
 
+use Illuminate\Contracts\Auth\MustVerifyEmail; // 1. Tambahkan ini
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
-// use Laravel\Sanctum\HasApiTokens; // Ini opsional, hanya jika Anda menggunakan Sanctum API Tokens
 
-class User extends Authenticatable
+// 2. Tambahkan "implements MustVerifyEmail"
+class User extends Authenticatable implements MustVerifyEmail
 {
-    use HasFactory, Notifiable; // Tambahkan HasApiTokens jika Anda menggunakannya
+    use HasFactory, Notifiable;
 
-
-    protected $table = 'users'; // Opsional jika nama tabel 'users'
-    // protected $primaryKey = 'id'; // Opsional jika primary key 'id'
+    protected $table = 'users';
 
     protected $fillable = [
         'name',
         'email',
         'password',
-        'id_role', // Pastikan ini ada di fillable
+        'id_role',
     ];
 
     protected $hidden = [
@@ -37,17 +36,11 @@ class User extends Authenticatable
 
     public function role()
     {
-        // Pastikan relasi ini sudah benar menggunakan 'id_role' sebagai foreign key
         return $this->belongsTo(Role::class, 'id_role', 'id_role');
     }
 
-    /**
-     * Check if the user has a specific role.
-     * Ini adalah helper method yang sangat berguna.
-     */
     public function hasRole($roleName)
     {
-        // Pastikan relasi role sudah dimuat sebelum mengakses namanya
         return $this->role && $this->role->nama_role == $roleName;
     }
 }

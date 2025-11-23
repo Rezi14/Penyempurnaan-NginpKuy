@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Auth;
 use App\Models\User;
 use App\Models\Role; // Import model Role
+use Illuminate\Auth\Events\Registered;
 
 class RegisterController extends Controller
 {
@@ -50,6 +51,8 @@ class RegisterController extends Controller
             'id_role' => $pelangganRole->id_role, // Tetapkan role 'pelanggan'
         ]);
 
+        event(new Registered($user));
+        
         // 4. Login User Setelah Pendaftaran (Opsional)
         Auth::login($user);
 

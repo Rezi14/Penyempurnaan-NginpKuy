@@ -1,17 +1,23 @@
-{{-- 1. Gunakan layout "guest" yang baru --}}
 @extends('layouts.guest')
 
-{{-- 2. Set judul halaman --}}
 @section('title', 'Login')
 
-{{-- 3. Masukkan konten ke "slot" @yield('content') --}}
 @section('content')
 <div class="auth-container">
-    <h2>Login</h2>
+    <div class="auth-header">
+        <h2>Selamat Datang</h2>
+        <p>Silakan masuk ke akun Anda</p>
+    </div>
 
     @if (session('success'))
         <div class="alert alert-success">
             {{ session('success') }}
+        </div>
+    @endif
+
+    @if (session('status'))
+        <div class="alert alert-success">
+            {{ session('status') }}
         </div>
     @endif
 
@@ -25,35 +31,51 @@
         </div>
     @endif
 
-    {{-- Saya ganti url('/login') menjadi route('login') agar lebih standar --}}
     <form method="POST" action="{{ route('login') }}">
         @csrf
 
         <div class="form-group">
-            <label for="email_or_name">Email atau Nama Pengguna</label>
-            <input type="text" id="email_or_name" name="email_or_name" value="{{ old('email_or_name') }}" required autofocus>
-            @error('email_or_name')
-                <span class="error-message">{{ $message }}</span>
-            @enderror
+            <label for="email_or_name">Email atau Username</label>
+            <input
+                type="text"
+                id="email_or_name"
+                name="email_or_name"
+                class="form-control"
+                value="{{ old('email_or_name') }}"
+                placeholder="Masukkan email/username"
+                required
+                autofocus>
         </div>
 
         <div class="form-group">
             <label for="password">Password</label>
-            <input type="password" id="password" name="password" required>
-            @error('password')
-                <span class="error-message">{{ $message }}</span>
-            @enderror
+            <input
+                type="password"
+                id="password"
+                name="password"
+                class="form-control"
+                placeholder="Masukkan password"
+                required>
         </div>
 
-        <div class="form-group">
-            <input type="checkbox" name="remember" id="remember">
-            <label for="remember">Ingat Saya</label>
+        {{-- BAGIAN PENTING: Flexbox Container untuk Kiri-Kanan --}}
+        <div class="auth-actions">
+            <div class="remember-me">
+                <input type="checkbox" name="remember" id="remember">
+                <label for="remember">Ingat Saya</label>
+            </div>
+
+            @if (Route::has('password.request'))
+                <a href="{{ route('password.request') }}" class="forgot-link">
+                    Lupa Password?
+                </a>
+            @endif
         </div>
 
-        <button type="submit" class="btn-primary">Login</button>
+        <button type="submit" class="btn-primary">Masuk Sekarang</button>
 
-        <div class="text-center">
-            Belum punya akun? <a href="{{ route('register') }}">Daftar sekarang</a>
+        <div class="auth-footer">
+            Belum punya akun? <a href="{{ route('register') }}">Daftar disini</a>
         </div>
     </form>
 </div>

@@ -44,7 +44,7 @@ class LoginController extends Controller
             // Logika redirect berdasarkan role
             $user = Auth::user();
             if ($user->role && $user->role->nama_role === 'admin') {
-                return redirect()->intended('/admin/dashboard')->with('success', 'Selamat datang, Admin NginapKuy!');
+                return redirect()->intended('/admin/dashboard')->with('success', 'Selamat datang, Roomify!');
             } else {
                 return redirect()->intended('/')->with('success', 'Berhasil login! Selamat datang.');
             }
