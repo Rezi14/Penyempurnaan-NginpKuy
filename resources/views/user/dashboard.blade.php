@@ -2,13 +2,13 @@
 @extends('layouts.user.app')
 
 {{-- 2. Set judul halaman ini --}}
-@section('title', 'Dashboard Pengguna - NginapKuy')
+@section('title', 'Dashboard Pengguna')
 
 @push('styles')
     <link href="{{ asset('css/dashboardpengguna.css') }}" rel="stylesheet">
     {{-- Gaya Kustom Tambahan --}}
     <style>
-        
+
     </style>
 @endpush
 

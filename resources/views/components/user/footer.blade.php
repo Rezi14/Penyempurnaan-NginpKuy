@@ -12,7 +12,7 @@
 <body>
     <footer class="text-center text-muted">
         <div class="container py-3">
-            <p class="mb-0">&copy; {{ date('Y') }} NginapKuy. Hak Cipta Dilindungi.</p>
+            <p class="mb-0">&copy; {{ date('Y') }} Roomify. Hak Cipta Dilindungi.</p>
         </div>
     </footer>
 

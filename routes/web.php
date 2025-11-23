@@ -40,11 +40,18 @@ Route::get('/', function () {
 // Jadikan /dashboard sebagai rute utama dengan nama 'dashboard'
 Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
+Route::get('/kontak', function () {
+    return view('user.pages.contact'); // Placeholder view
+})->name('contact');
+
+
 // --- Rute Autentikasi (Login, Register, Logout) ---
 Route::controller(LoginController::class)->group(function () {
     Route::get('/login', 'showLoginForm')->name('login');
     Route::post('/login', 'login');
     Route::post('/logout', 'logout')->name('logout');
+
+
 });
 
 Route::controller(RegisterController::class)->group(function () {
@@ -55,6 +62,9 @@ Route::controller(RegisterController::class)->group(function () {
 
 // --- Grup Rute yang MEMERLUKAN AUTENTIKASI (Login) ---
 Route::middleware('auth')->group(function () {
+
+    Route::get('/profile', function () {
+    return view('user.pages.profile', ['user' => Illuminate\Support\Facades\Auth::user()]);})->name('profile');
 
     // Rute Pemesanan Kamar (User Biasa)
     Route::controller(BookingController::class)->group(function () {
