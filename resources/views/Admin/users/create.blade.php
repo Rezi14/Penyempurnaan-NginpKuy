@@ -1,6 +1,6 @@
 @extends('layouts.admin.app')
 
-@section('title', 'Tambah Pengguna Baru - NginapKuy Admin')
+@section('title', 'Tambah Pengguna Baru - Roomify Admin')
 
 @section('content')
     <div class="container-fluid px-4">

@@ -242,7 +242,7 @@ class PemesananController extends Controller
                 }
 
                 // Redirect kembali ke daftar pemesanan (item ini akan hilang dari list aktif)
-                return redirect()->route('admin.pemesanans.index')
+                return redirect()->route('admin.dashboard')
                                 ->with('success', 'Check out berhasil. Transaksi selesai (Pembayaran Lunas).');
             } else {
                 return redirect()->back()->with('error', 'Pemesanan tidak dapat di-check out karena statusnya bukan "Checked In".');

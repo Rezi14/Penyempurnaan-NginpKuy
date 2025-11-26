@@ -1,6 +1,6 @@
 @extends('layouts.admin.app')
 
-@section('title', 'Manajemen Kamar - NginapKuy Admin')
+@section('title', 'Manajemen Kamar - Roomify Admin')
 
 @section('content')
     <div class="container-fluid px-4">
@@ -58,15 +58,19 @@
                                     <td>
                                         <div class="d-grid gap-1">
                                             {{-- Tombol Edit (Tetap menggunakan id_kamar di backend) --}}
-                                            <a href="{{ route('admin.kamars.edit', $kamar->id_kamar) }}" class="btn btn-sm btn-warning w-100" title="Edit Kamar">
+                                            <a href="{{ route('admin.kamars.edit', $kamar->id_kamar) }}"
+                                                class="btn btn-sm btn-warning w-100" title="Edit Kamar">
                                                 <i class="fas fa-edit"></i> Edit
                                             </a>
 
                                             {{-- Tombol Hapus --}}
-                                            <form action="{{ route('admin.kamars.destroy', $kamar->id_kamar) }}" method="POST" onsubmit="return confirm('Apakah Anda yakin ingin menghapus kamar ini?');">
+                                            <form action="{{ route('admin.kamars.destroy', $kamar->id_kamar) }}"
+                                                method="POST"
+                                                onsubmit="return confirm('Apakah Anda yakin ingin menghapus kamar ini?');">
                                                 @csrf
                                                 @method('DELETE')
-                                                <button type="submit" class="btn btn-sm btn-danger w-100" title="Hapus Kamar">
+                                                <button type="submit" class="btn btn-sm btn-danger w-100"
+                                                    title="Hapus Kamar">
                                                     <i class="fas fa-trash-alt"></i> Hapus
                                                 </button>
                                             </form>
@@ -75,7 +79,11 @@
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="5" class="text-center">Tidak ada kamar yang tersedia.</td>
+                                    <td colspan="10" class="text-center py-4">
+                                        <div class="alert alert-info mb-0">
+                                            <i class="fas fa-info-circle me-2"></i> Belum Memiliki kamar
+                                        </div>
+                                    </td>
                                 </tr>
                             @endforelse
                         </tbody>

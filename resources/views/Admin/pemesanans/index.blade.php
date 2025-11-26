@@ -1,6 +1,6 @@
 @extends('layouts.admin.app')
 
-@section('title', 'Manajemen Pemesanan - NginapKuy Admin')
+@section('title', 'Manajemen Pemesanan - Roomify Admin')
 
 @section('content')
     <div class="container-fluid px-4">
@@ -55,8 +55,9 @@
                                     <td>{{ \Carbon\Carbon::parse($pemesanan->check_in_date)->format('d M Y') }}</td>
                                     <td>{{ \Carbon\Carbon::parse($pemesanan->check_out_date)->format('d M Y') }}</td>
                                     <td>
-                                        <span class="badge {{ $pemesanan->status == 'pending' ? 'bg-warning text-dark' : ($pemesanan->status == 'confirmed' ? 'bg-success' : ($pemesanan->status == 'checked_in' ? 'bg-primary' : ($pemesanan->status == 'checked_out' ? 'bg-info' : 'bg-secondary'))) }}">
-                                            {{ ucfirst(str_replace('_', ' ', $pemesanan->status)) }}
+                                        <span
+                                            class="badge {{ $pemesanan->status_pemesanan == 'pending' ? 'bg-warning text-dark' : ($pemesanan->status_pemesanan == 'confirmed' ? 'bg-success' : ($pemesanan->status_pemesanan == 'checked_in' ? 'bg-primary' : ($pemesanan->status_pemesanan == 'checked_out' ? 'bg-info' : 'bg-secondary'))) }}">
+                                            {{ ucfirst(str_replace('_', ' ', $pemesanan->status_pemesanan)) }}
                                         </span>
                                     </td>
                                     <td>Rp {{ number_format($pemesanan->total_harga, 2, ',', '.') }}</td>
@@ -73,7 +74,8 @@
                                     </td>
                                     <td>
                                         <div class="d-grid gap-1">
-                                            <a href="{{ route('admin.pemesanans.show', $pemesanan->id_pemesanan) }}" class="btn btn-sm btn-info w-100 text-white" title="Lihat Detail">
+                                            <a href="{{ route('admin.pemesanans.show', $pemesanan->id_pemesanan) }}"
+                                                class="btn btn-sm btn-info w-100 text-white" title="Lihat Detail">
                                                 <i class="fas fa-eye"></i> Detail
                                             </a>
                                         </div>
@@ -81,7 +83,11 @@
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="9" class="text-center">Tidak ada pemesanan yang tersedia.</td>
+                                    <td colspan="10" class="text-center py-4">
+                                        <div class="alert alert-info mb-0">
+                                            <i class="fas fa-info-circle me-2"></i> Tidak ada Pesanan Masuk
+                                        </div>
+                                    </td>
                                 </tr>
                             @endforelse
                         </tbody>

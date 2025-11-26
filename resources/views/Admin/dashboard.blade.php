@@ -60,67 +60,73 @@
                 Pelanggan Sedang Menginap
             </div>
             <div class="card-body">
-                @if ($pelangganCheckin->isEmpty())
-                    <div class="alert alert-info text-center mb-0">
-                        Tidak ada pelanggan yang sedang menginap saat ini.
-                    </div>
-                @else
-                    <div class="table-responsive">
-                        <table class="table table-hover table-striped">
-                            <thead>
+                {{-- Table Responsive Wrapper selalu dirender --}}
+                <div class="table-responsive">
+                    <table class="table table-hover table-striped">
+                        <thead>
+                            <tr>
+                                <th>Pelanggan</th>
+                                <th>Kamar</th>
+                                <th>Tipe Kamar</th>
+                                <th>Check-in</th>
+                                <th>Check-out</th>
+                                <th>Fasilitas Tambahan</th>
+                                <th>Total Harga</th>
+                                <th>Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {{-- Menggunakan @forelse untuk menangani data kosong --}}
+                            @forelse ($pelangganCheckin as $pemesanan)
                                 <tr>
-                                    <th>Pelanggan</th>
-                                    <th>Kamar</th>
-                                    <th>Tipe Kamar</th>
-                                    <th>Check-in</th>
-                                    <th>Check-out</th>
-                                    <th>Fasilitas Tambahan</th>
-                                    <th>Total Harga</th>
-                                    <th>Aksi</th>
+                                    <td>{{ $pemesanan->user->name }}</td>
+                                    <td>{{ $pemesanan->kamar->nomor_kamar }}</td>
+                                    <td>{{ $pemesanan->kamar->tipeKamar->nama_tipe_kamar }}</td>
+                                    <td>{{ \Carbon\Carbon::parse($pemesanan->check_in_date)->format('d M Y') }}</td>
+                                    <td>{{ \Carbon\Carbon::parse($pemesanan->check_out_date)->format('d M Y') }}</td>
+                                    <td>
+                                        @if ($pemesanan->fasilitas->isNotEmpty())
+                                            <ul class="mb-0 ps-3">
+                                                @foreach ($pemesanan->fasilitas as $fasilitas)
+                                                    <li>{{ $fasilitas->nama_fasilitas }} (Rp {{ number_format($fasilitas->biaya_tambahan, 2, ',', '.') }})</li>
+                                                @endforeach
+                                            </ul>
+                                        @else
+                                            <span class="text-muted">Tidak Ada</span>
+                                        @endif
+                                    </td>
+                                    <td>Rp {{ number_format($pemesanan->total_harga, 2, ',', '.') }}</td>
+                                    <td>
+                                        <div class="d-flex gap-1 flex-wrap">
+                                            {{-- Tombol Tambah Fasilitas --}}
+                                            <a href="{{ route('admin.pemesanans.edit', $pemesanan->id_pemesanan) }}" class="btn btn-sm btn-info text-white" title="Edit / Tambah Fasilitas">
+                                                <i class="fas fa-plus"></i> Fasilitas
+                                            </a>
+                                            {{-- Tombol Checkout --}}
+                                            <form action="{{ route('admin.pemesanans.checkout', $pemesanan->id_pemesanan) }}" method="POST" onsubmit="return confirm('Apakah Anda yakin ingin melakukan checkout untuk pelanggan ini?');">
+                                                @csrf
+                                                @method('PATCH')
+                                                <button type="submit" class="btn btn-sm btn-success" title="Checkout Pelanggan">
+                                                    <i class="fas fa-check"></i> Checkout
+                                                </button>
+                                            </form>
+                                        </div>
+                                    </td>
                                 </tr>
-                            </thead>
-                            <tbody>
-                                @foreach ($pelangganCheckin as $pemesanan)
-                                    <tr>
-                                        <td data-label="Pelanggan">{{ $pemesanan->user->name }}</td>
-                                        <td data-label="Kamar">{{ $pemesanan->kamar->nomor_kamar }}</td>
-                                        <td data-label="Tipe Kamar">{{ $pemesanan->kamar->tipeKamar->nama_tipe_kamar }}</td>
-                                        <td data-label="Check-in">{{ \Carbon\Carbon::parse($pemesanan->check_in_date)->format('d M Y') }}</td>
-                                        <td data-label="Check-out">{{ \Carbon\Carbon::parse($pemesanan->check_out_date)->format('d M Y') }}</td>
-                                        <td data-label="Fasilitas Tambahan">
-                                            @if ($pemesanan->fasilitas->isNotEmpty())
-                                                <ul class="mb-0 ps-3">
-                                                    @foreach ($pemesanan->fasilitas as $fasilitas)
-                                                        <li>{{ $fasilitas->nama_fasilitas }} (Rp {{ number_format($fasilitas->biaya_tambahan, 2, ',', '.') }})</li>
-                                                    @endforeach
-                                                </ul>
-                                            @else
-                                                <span class="text-muted">Tidak Ada</span>
-                                            @endif
-                                        </td>
-                                        <td data-label="Total Harga">Rp {{ number_format($pemesanan->total_harga, 2, ',', '.') }}</td>
-                                        <td data-label="Aksi">
-                                            <div class="d-flex gap-1 flex-wrap">
-                                                {{-- Tombol Tambah Fasilitas --}}
-                                                <a href="{{ route('admin.pemesanans.edit', $pemesanan->id_pemesanan) }}" class="btn btn-sm btn-info text-white" title="Edit / Tambah Fasilitas">
-                                                    <i class="fas fa-plus"></i> Fasilitas
-                                                </a>
-                                                {{-- Tombol Checkout --}}
-                                                <form action="{{ route('admin.pemesanans.checkout', $pemesanan->id_pemesanan) }}" method="POST" onsubmit="return confirm('Apakah Anda yakin ingin melakukan checkout untuk pelanggan ini?');">
-                                                    @csrf
-                                                    @method('PATCH')
-                                                    <button type="submit" class="btn btn-sm btn-success" title="Checkout Pelanggan">
-                                                        <i class="fas fa-check"></i> Checkout
-                                                    </button>
-                                                </form>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                @endforeach
-                            </tbody>
-                        </table>
-                    </div>
-                @endif
+                            @empty
+                                {{-- Tampilan jika data kosong --}}
+                                <tr>
+                                    {{-- colspan="8" sesuai jumlah kolom <th> --}}
+                                    <td colspan="8" class="text-center py-4">
+                                        <div class="alert alert-info mb-0">
+                                            <i class="fas fa-info-circle me-2"></i> Tidak ada pelanggan yang sedang menginap saat ini.
+                                        </div>
+                                    </td>
+                                </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
     </div>

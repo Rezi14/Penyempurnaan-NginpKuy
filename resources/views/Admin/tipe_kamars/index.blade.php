@@ -1,6 +1,6 @@
 @extends('layouts.admin.app')
 
-@section('title', 'Manajemen Tipe Kamar - NginapKuy Admin')
+@section('title', 'Manajemen Tipe Kamar - Roomify Admin')
 
 @section('content')
     <div class="container-fluid px-4">
@@ -51,7 +51,9 @@
                                     <td>
                                         @if ($tipeKamar->foto_url)
                                             <a href="{{ asset($tipeKamar->foto_url) }}" target="_blank">
-                                                <img src="{{ asset($tipeKamar->foto_url) }}" alt="Foto {{ $tipeKamar->nama_tipe_kamar }}" class="img-thumbnail" style="width: 80px; height: 50px; object-fit: cover;">
+                                                <img src="{{ asset($tipeKamar->foto_url) }}"
+                                                    alt="Foto {{ $tipeKamar->nama_tipe_kamar }}" class="img-thumbnail"
+                                                    style="width: 80px; height: 50px; object-fit: cover;">
                                             </a>
                                         @else
                                             <span class="text-muted">Tidak ada foto</span>
@@ -59,13 +61,18 @@
                                     </td>
                                     <td>
                                         <div class="d-grid gap-1">
-                                            <a href="{{ route('admin.tipe_kamars.edit', $tipeKamar->id_tipe_kamar) }}" class="btn btn-sm btn-warning w-100" title="Edit Tipe Kamar">
+                                            <a href="{{ route('admin.tipe_kamars.edit', $tipeKamar->id_tipe_kamar) }}"
+                                                class="btn btn-sm btn-warning w-100" title="Edit Tipe Kamar">
                                                 <i class="fas fa-edit"></i> Edit
                                             </a>
-                                            <form action="{{ route('admin.tipe_kamars.destroy', $tipeKamar->id_tipe_kamar) }}" method="POST" onsubmit="return confirm('Apakah Anda yakin ingin menghapus tipe kamar ini? Ini akan juga menghapus kamar yang terkait!');">
+                                            <form
+                                                action="{{ route('admin.tipe_kamars.destroy', $tipeKamar->id_tipe_kamar) }}"
+                                                method="POST"
+                                                onsubmit="return confirm('Apakah Anda yakin ingin menghapus tipe kamar ini? Ini akan juga menghapus kamar yang terkait!');">
                                                 @csrf
                                                 @method('DELETE')
-                                                <button type="submit" class="btn btn-sm btn-danger w-100" title="Hapus Tipe Kamar">
+                                                <button type="submit" class="btn btn-sm btn-danger w-100"
+                                                    title="Hapus Tipe Kamar">
                                                     <i class="fas fa-trash-alt"></i> Hapus
                                                 </button>
                                             </form>
@@ -74,7 +81,11 @@
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="5" class="text-center">Tidak ada tipe kamar yang tersedia.</td>
+                                    <td colspan="10" class="text-center py-4">
+                                        <div class="alert alert-info mb-0">
+                                            <i class="fas fa-info-circle me-2"></i> Belum Ada Tipe Kamar
+                                        </div>
+                                    </td>
                                 </tr>
                             @endforelse
                         </tbody>

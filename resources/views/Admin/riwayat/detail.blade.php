@@ -1,10 +1,12 @@
 @extends('layouts.admin.app')
 
+@section('title', 'Detail Riwayat Pemesanan - Roomify Admin')
+
 @section('content')
 <div class="container-fluid">
     <div class="d-sm-flex align-items-center justify-content-between mb-4">
         <h1 class="h3 mb-0 text-gray-800">Detail Riwayat Pemesanan #{{ $pemesanan->id_pemesanan }}</h1>
-        <a href="{{ route('admin.riwayat.pemesanan') }}" class="btn btn-secondary btn-sm shadow-sm">
+        <a href="{{ route('admin.riwayat.pemesanan') }}" class="btn btn-danger text-white btn-sm shadow-sm">
             <i class="fas fa-arrow-left fa-sm text-white-50"></i> Kembali
         </a>
     </div>
