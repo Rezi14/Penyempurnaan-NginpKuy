@@ -24,6 +24,6 @@ class DashboardAdminController extends Controller
             ->whereDate('check_out_date', '>=', Carbon::today()) // Belum check-out
             ->get();
 
-        return view('admin.dashboard', compact('totalKamar', 'totalPemesanan', 'totalPengguna', 'pelangganCheckin'));
+        return view('Admin.dashboard', compact('totalKamar', 'totalPemesanan', 'totalPengguna', 'pelangganCheckin'));
     }
 }

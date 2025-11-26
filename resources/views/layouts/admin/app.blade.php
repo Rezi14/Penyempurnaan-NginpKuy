@@ -5,23 +5,19 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
     {{-- Judul akan dinamis, diambil dari @section('title') --}}
-    <title>@yield('title', 'Roomify')</title>
+    <title>@yield('title', 'NginapKuy')</title>
 
-    {{-- CSS Bootstrap & Google Fonts --}}
-    {{-- INI DIPERBAIKI: jstdelivr -> jsdelivr --}}
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-
-    {{-- CSS Kustom Anda --}}
-    {{-- INI DIPERBAIKI: 'public/css/...' -> 'css/...' --}}
-    @stack('styles')
+    <link href="{{ asset('css/admindashboard.css') }}" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
 </head>
 <body>
 
     {{--
       (Pastikan komponen Anda ada di resources/views/components/user/navbar.blade.php)
     --}}
-    <x-user.navbar :user="Auth::user()" />
+    <x-admin.navbar" />
 
     {{-- Konten utama halaman --}}
     <main class="container my-5 grow">
@@ -31,7 +27,7 @@
     {{--
       (Pastikan komponen Anda ada di resources/views/components/user/footer.blade.php)
     --}}
-    <x-user.footer />
+    <x-admin.footer />
 
     {{-- Script JS Bootstrap --}}
     {{-- INI DIPERBAIKI: jstdelivr -> jsdelivr --}}
