@@ -1,19 +1,14 @@
-<!DOCTYPE html>
-<html lang="en">
+@extends('layouts.user.app')
 
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pesan Kamar: {{ $kamar->nomor_kamar }}</title>
-    <link
-        href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700&family=Roboto:wght@300;400;500;700&display=swap"
-        rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"
-        integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+{{-- 2. Set judul halaman ini --}}
+@section('title', 'Pemesanan')
+
+@push('styles')
     <link href="{{ asset('css/booking.css') }}" rel="stylesheet">
-</head>
+@endpush
 
-<body>
+{{-- 3. Masukkan konten unik halaman ini ke slot 'content' --}}
+@section('content')
     <div class="container main-content">
         <div class="row justify-content-center">
             <div class="col-lg-10 col-md-12">
@@ -89,24 +84,27 @@
                                 </div>
 
                                 {{-- BAGIAN FASILITAS TAMBAHAN DITAMBAHKAN KEMBALI --}}
-                               @if($fasilitasTersedia->isNotEmpty())
+                                @if ($fasilitasTersedia->isNotEmpty())
                                     <div class="mt-4 mb-3">
                                         <h5 class="mb-3 fs-6 fw-bold">Fasilitas Tambahan (Opsional)</h5>
                                         <div class="card bg-light border-0">
                                             <div class="card-body">
                                                 @foreach ($fasilitasTersedia as $fasilitas)
-                                                    <div class="form-check d-flex justify-content-between align-items-center mb-2">
+                                                    <div
+                                                        class="form-check d-flex justify-content-between align-items-center mb-2">
                                                         <div>
                                                             <input class="form-check-input" type="checkbox"
-                                                                   name="fasilitas_ids[]"
-                                                                   value="{{ $fasilitas->id_fasilitas }}"
-                                                                   id="fasilitas_{{ $fasilitas->id_fasilitas }}">
-                                                            <label class="form-check-label" for="fasilitas_{{ $fasilitas->id_fasilitas }}">
+                                                                name="fasilitas_ids[]"
+                                                                value="{{ $fasilitas->id_fasilitas }}"
+                                                                id="fasilitas_{{ $fasilitas->id_fasilitas }}">
+                                                            <label class="form-check-label"
+                                                                for="fasilitas_{{ $fasilitas->id_fasilitas }}">
                                                                 {{ $fasilitas->nama_fasilitas }}
                                                             </label>
                                                         </div>
                                                         <span class="text-primary fw-bold small">
-                                                            + Rp {{ number_format($fasilitas->biaya_tambahan, 0, ',', '.') }}
+                                                            + Rp
+                                                            {{ number_format($fasilitas->biaya_tambahan, 0, ',', '.') }}
                                                         </span>
                                                     </div>
                                                 @endforeach
@@ -128,9 +126,4 @@
             </div>
         </div>
     </div>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
-        integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous">
-    </script>
-</body>
-
-</html>
+@endsection

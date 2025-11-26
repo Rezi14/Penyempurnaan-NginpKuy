@@ -19,6 +19,17 @@ class BookingController extends Controller
 
     public function showBookingForm(Kamar $kamar)
     {
+        // 1. TAMBAHAN PENTING: Cek apakah user punya pesanan yang masih 'pending'
+        // Jika ada, paksa user untuk menyelesaikannya terlebih dahulu
+        $pendingBooking = Pemesanan::where('user_id', Auth::id())
+                                   ->where('status_pemesanan', 'pending')
+                                   ->first();
+
+        if ($pendingBooking) {
+            return redirect()->route('booking.payment', $pendingBooking->id_pemesanan)
+                             ->with('error', 'Anda masih memiliki pesanan yang belum diselesaikan. Silakan bayar atau batalkan pesanan tersebut untuk memesan kamar baru.');
+        }
+
         // Cek jika kamar sedang tidak tersedia (preventif jika ada yang akses URL langsung)
         if ($kamar->status_kamar == 0) {
              return redirect()->route('dashboard')->with('error', 'Maaf, kamar ini baru saja dipesan orang lain.');
@@ -33,6 +44,16 @@ class BookingController extends Controller
 
     public function store(Request $request)
     {
+        // 2. TAMBAHAN PENTING: Cek lagi di method store untuk keamanan ganda
+        $pendingBooking = Pemesanan::where('user_id', Auth::id())
+                                   ->where('status_pemesanan', 'pending')
+                                   ->first();
+
+        if ($pendingBooking) {
+            return redirect()->route('booking.payment', $pendingBooking->id_pemesanan)
+                             ->with('error', 'Transaksi sebelumnya belum selesai. Harap selesaikan pembayaran terlebih dahulu.');
+        }
+
         $request->validate([
             'kamar_id' => 'required|exists:kamars,id_kamar',
             'check_in_date' => 'required|date|after_or_equal:today',
@@ -70,7 +91,7 @@ class BookingController extends Controller
             }
         }
 
-        // 1. Buat Pemesanan
+        // Buat Pemesanan
         $pemesanan = Pemesanan::create([
             'user_id' => Auth::id(),
             'kamar_id' => $kamar->id_kamar,
@@ -85,7 +106,7 @@ class BookingController extends Controller
             $pemesanan->fasilitas()->attach($request->fasilitas_ids);
         }
 
-        // 2. UPDATE PENTING: Set Kamar jadi TIDAK TERSEDIA (0) saat ini juga
+        // Set Kamar jadi TIDAK TERSEDIA (0) saat ini juga
         $kamar->status_kamar = 0;
         $kamar->save();
 
@@ -93,10 +114,13 @@ class BookingController extends Controller
                          ->with('success', 'Pesanan berhasil! Silakan selesaikan pembayaran dalam 10 menit.');
     }
 
+    // ... (method showPayment, checkPaymentStatus, dll biarkan seperti semula)
     public function showPayment($id)
     {
+        // Kode existing Anda ...
         $pemesanan = Pemesanan::with(['kamar.tipeKamar'])->findOrFail($id);
 
+        // ... dst
         if ($pemesanan->user_id !== Auth::id()) {
             abort(403);
         }
@@ -109,48 +133,36 @@ class BookingController extends Controller
         $batasWaktu = $waktuDibuat->addMinutes(10);
         $sisaWaktuDetik = Carbon::now()->diffInSeconds($batasWaktu, false);
 
-        // Jika waktu habis saat user refresh halaman payment
         if ($sisaWaktuDetik <= 0) {
-            // Cancel pesanan
             $pemesanan->update(['status_pemesanan' => 'cancelled']);
-
-            // Kembalikan status kamar jadi TERSEDIA (1)
             $kamar = $pemesanan->kamar;
             $kamar->status_kamar = 1;
             $kamar->save();
-
             return redirect()->route('dashboard')->with('error', 'Waktu pembayaran telah habis.');
         }
 
         return view('user.payment', compact('pemesanan', 'batasWaktu'));
     }
 
-    // Dipanggil via AJAX setiap detik
+    // ... Method checkPaymentStatus, cancelBooking, simulatePaymentSuccess tetap sama ...
     public function checkPaymentStatus($id)
     {
         $pemesanan = Pemesanan::findOrFail($id);
 
-        // A. Jika Sukses Dibayar
         if ($pemesanan->status_pemesanan == 'confirmed') {
             return response()->json(['status' => 'success']);
         }
 
-        // B. Cek Waktu Habis (Auto Cancel)
         $batasWaktu = Carbon::parse($pemesanan->created_at)->addMinutes(10);
 
         if (Carbon::now()->greaterThan($batasWaktu)) {
-            // 1. Batalkan Pesanan
             $pemesanan->update(['status_pemesanan' => 'cancelled']);
-
-            // 2. PENTING: Kembalikan Kamar jadi TERSEDIA (1)
             $kamar = $pemesanan->kamar;
             $kamar->status_kamar = 1;
             $kamar->save();
-
             return response()->json(['status' => 'expired']);
         }
 
-        // C. Jika dibatalkan manual oleh sistem lain/admin
         if ($pemesanan->status_pemesanan == 'cancelled') {
              return response()->json(['status' => 'expired']);
         }
@@ -158,39 +170,27 @@ class BookingController extends Controller
         return response()->json(['status' => 'pending']);
     }
 
-    // User klik tombol "Batalkan Pesanan"
     public function cancelBooking($id)
     {
         $pemesanan = Pemesanan::findOrFail($id);
 
         if ($pemesanan->user_id == Auth::id() && $pemesanan->status_pemesanan == 'pending') {
-            // 1. Update status pesanan
             $pemesanan->update(['status_pemesanan' => 'cancelled']);
-
-            // 2. PENTING: Kembalikan Kamar jadi TERSEDIA (1)
             $kamar = $pemesanan->kamar;
             $kamar->status_kamar = 1;
             $kamar->save();
-
             return redirect()->route('dashboard')->with('success', 'Pesanan dibatalkan.');
         }
 
         return back();
     }
 
-    // --- SIMULASI PEMBAYARAN SUKSES ---
     public function simulatePaymentSuccess($id)
     {
         $pemesanan = Pemesanan::with('kamar')->findOrFail($id);
 
         if ($pemesanan->status_pemesanan == 'pending') {
-            // Ubah status pemesanan jadi Lunas/Confirmed
             $pemesanan->update(['status_pemesanan' => 'confirmed']);
-
-            // NOTE: Kita TIDAK PERLU mengubah status kamar di sini.
-            // Karena status kamar sudah di-set jadi 0 (Tidak Tersedia) saat di method store().
-            // Jadi kamar tetap terkunci untuk user ini.
-
             return redirect()->route('dashboard')->with('success', 'Pembayaran Berhasil! Kamar Berhasil Dipesan.');
         }
 
