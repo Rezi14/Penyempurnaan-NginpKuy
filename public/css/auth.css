@@ -167,3 +167,44 @@ body {
     color: #065f46;
     border: 1px solid #a7f3d0;
 }
+
+.form-control:focus {
+    outline: none;
+    border-color: #2563eb;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+.auth-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+    font-size: 14px;
+}
+
+/* ... [Kode lainnya tetap sama] ... */
+
+/* --- TAMBAHAN RESPONSIF --- */
+@media (max-width: 576px) {
+    .auth-container {
+        padding: 25px 20px;
+        margin: 15px;
+        width: 100%;
+    }
+
+    .auth-header h2 {
+        font-size: 20px;
+    }
+
+    /* Stack elemen Remember Me dan Forgot Password secara vertikal */
+    .auth-actions {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
+    }
+
+    /* Sesuaikan indentasi agar rapi */
+    .forgot-link {
+        padding-left: 24px; /* Sejajar dengan teks checkbox */
+    }
+}
