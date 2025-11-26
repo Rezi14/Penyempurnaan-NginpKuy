@@ -39,7 +39,7 @@ class PemesananController extends Controller
         $kamars = Kamar::with('tipeKamar')
                 ->orderBy('nomor_kamar', 'asc') // urut berdasarkan id_kamar (naik)
                 ->get();
-        $fasilitas = Fasilitas::all();
+        $fasilitas = Fasilitas::where('biaya_tambahan', '>', 0)->get();
 
         return view('admin.pemesanans.create', compact('users', 'kamars', 'fasilitas'));
     }
@@ -123,6 +123,7 @@ class PemesananController extends Controller
         $users = User::all();
         $kamars = Kamar::all();
         $fasilitas = Fasilitas::all();
+        $fasilitas = Fasilitas::where('biaya_tambahan', '>', 0)->get();
         $selectedFasilitas = $pemesanan->fasilitas->pluck('id_fasilitas')->toArray();
 
         return view('admin.pemesanans.edit', compact('pemesanan', 'users', 'kamars', 'fasilitas', 'selectedFasilitas'));

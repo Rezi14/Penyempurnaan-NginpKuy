@@ -17,7 +17,7 @@ class UserController extends Controller
     public function index()
     {
         // Ambil semua pengguna beserta peran mereka
-        $users = User::with('role')->orderBy('name')->get();
+        $users = User::with('role')->orderBy('id_role')->get();
         return view('admin.users.index', compact('users'));
     }
 
