@@ -86,12 +86,25 @@ Route::middleware('auth')->group(function () {
 Route::middleware('auth')->group(function () {
 
     Route::get('/profile', function () {
-    return view('user.pages.profile', ['user' => Illuminate\Support\Facades\Auth::user()]);})->name('profile');
+        return view('user.pages.profile', ['user' => Illuminate\Support\Facades\Auth::user()]);
+    })->name('profile');
 
     // Rute Pemesanan Kamar (User Biasa)
     Route::controller(BookingController::class)->middleware('verified')->group(function () {
         Route::get('/pesan-kamar/{kamar}', 'showBookingForm')->name('booking.create');
         Route::post('/pesan-kamar', 'store')->name('booking.store');
+
+        Route::get('/pembayaran/{id}', 'showPayment')->name('booking.payment');
+
+        // 2. Cek Status (Dipanggil otomatis oleh JavaScript setiap detik)
+        Route::get('/pembayaran/{id}/check', 'checkPaymentStatus')->name('booking.payment.check');
+
+        // 3. Batalkan Pesanan (Manual oleh user)
+        Route::post('/pembayaran/{id}/cancel', 'cancelBooking')->name('booking.payment.cancel');
+
+        // 4. SIMULASI: Link ini berpura-pura menjadi sistem bank/QRIS yang menerima pembayaran
+        // (Anda bisa membuka link ini di tab baru untuk mengetes 'Scan QR berhasil')
+        Route::get('/simulasi/qr-scan/{id}', 'simulatePaymentSuccess')->name('simulation.qr.scan');
     });
 
     // --- Grup Rute Khusus ADMIN ---
