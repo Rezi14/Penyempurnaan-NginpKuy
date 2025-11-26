@@ -2,12 +2,11 @@
 
 namespace App\Models;
 
-use Illuminate\Contracts\Auth\MustVerifyEmail; // 1. Tambahkan ini
+use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
-// 2. Tambahkan "implements MustVerifyEmail"
 class User extends Authenticatable implements MustVerifyEmail
 {
     use HasFactory, Notifiable;
@@ -42,5 +41,13 @@ class User extends Authenticatable implements MustVerifyEmail
     public function hasRole($roleName)
     {
         return $this->role && $this->role->nama_role == $roleName;
+    }
+
+    // --- TAMBAHAN BARU ---
+    // Relasi ke tabel pemesanans
+    public function pemesanans()
+    {
+        // Parameter ke-2 'user_id' harus sesuai dengan kolom foreign key di tabel pemesanans
+        return $this->hasMany(Pemesanan::class, 'user_id', 'id');
     }
 }

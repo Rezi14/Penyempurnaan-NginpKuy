@@ -8,6 +8,8 @@ use App\Http\Middleware\RoleMiddleware;
 // Controller User
 use App\Http\Controllers\User\DashboardController;
 use App\Http\Controllers\User\BookingController;
+use App\Http\Controllers\User\ContactController;
+use App\Http\Controllers\User\ProfileController;
 
 // Controller Autentikasi
 use App\Http\Controllers\Auth\LoginController;
@@ -42,79 +44,97 @@ Route::get('/kontak', function () {
     return view('user.pages.contact');
 })->name('contact');
 
-// --- Rute Autentikasi ---
+Route::get('/kontak', [ContactController::class, 'index'])->name('contact');
+Route::post('/kontak', [ContactController::class, 'send'])->name('contact.send');
+
+Route::middleware('guest')->group(function () {
 Route::controller(LoginController::class)->group(function () {
     Route::get('/login', 'showLoginForm')->name('login');
     Route::post('/login', 'login');
-    Route::post('/logout', 'logout')->name('logout');
 });
 
 Route::controller(RegisterController::class)->group(function () {
     Route::get('/register', 'showRegistrationForm')->name('register');
     Route::post('/register', 'register');
 });
-
-// --- Rute Forgot & Reset Password ---
-Route::controller(ForgotPasswordController::class)->group(function () {
-    Route::get('/forgot-password', 'showLinkRequestForm')->name('password.request');
-    Route::post('/forgot-password', 'sendResetLinkEmail')->name('password.email');
 });
 
-Route::controller(ResetPasswordController::class)->group(function () {
-    Route::get('/reset-password/{token}', 'showResetForm')->name('password.reset');
-    Route::post('/reset-password', 'reset')->name('password.update');
-});
-
-// --- Rute Verifikasi Email ---
-Route::middleware('auth')->group(function () {
-    Route::controller(VerificationController::class)->group(function () {
-        Route::get('/email/verify', 'show')->name('verification.notice');
-        Route::get('/email/verify/{id}/{hash}', 'verify')->middleware(['signed'])->name('verification.verify');
-        Route::post('/email/verification-notification', 'resend')->middleware(['throttle:6,1'])->name('verification.send');
-    });
-});
-
-// --- Grup Rute yang MEMERLUKAN AUTENTIKASI ---
 Route::middleware('auth')->group(function () {
 
-    Route::get('/profile', function () {
-        return view('user.pages.profile', ['user' => Illuminate\Support\Facades\Auth::user()]);
-    })->name('profile');
-
-    // Rute Pemesanan Kamar (User Biasa)
-    Route::controller(BookingController::class)->middleware('verified')->group(function () {
-        Route::get('/pesan-kamar/{kamar}', 'showBookingForm')->name('booking.create');
-        Route::post('/pesan-kamar', 'store')->name('booking.store');
-
-        Route::get('/pembayaran/{id}', 'showPayment')->name('booking.payment');
-        Route::get('/pembayaran/{id}/check', 'checkPaymentStatus')->name('booking.payment.check');
-        Route::post('/pembayaran/{id}/cancel', 'cancelBooking')->name('booking.payment.cancel');
-        Route::get('/simulasi/qr-scan/{id}', 'simulatePaymentSuccess')->name('simulation.qr.scan');
+    // --- FITUR PROFIL ---
+    Route::controller(ProfileController::class)->group(function () {
+        Route::get('/profile', 'index')->name('profile');
+        Route::put('/profile/update', 'update')->name('profile.update');
+        Route::put('/profile/password', 'updatePassword')->name('profile.password');
     });
 
-    // --- Grup Rute Khusus ADMIN ---
-    Route::middleware(['auth', RoleMiddleware::class . ':admin'])->prefix('admin')->name('admin.')->group(function () {
+    Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
+    // --- Rute Autentikasi ---
 
-        Route::get('/dashboard', [DashboardAdminController::class, 'index'])->name('dashboard');
 
-        // CRUD Resources
-        Route::resource('kamars', KamarController::class);
-        Route::resource('tipe_kamars', TipeKamarController::class);
-        Route::resource('users', UserController::class);
-        Route::resource('fasilitas', FasilitasController::class);
+    // --- Rute Forgot & Reset Password ---
+    Route::controller(ForgotPasswordController::class)->group(function () {
+        Route::get('/forgot-password', 'showLinkRequestForm')->name('password.request');
+        Route::post('/forgot-password', 'sendResetLinkEmail')->name('password.email');
+    });
 
-        // Grup Rute Pemesanan
-        Route::resource('pemesanans', PemesananController::class);
-        Route::controller(PemesananController::class)->prefix('pemesanans/{pemesanan}')->name('pemesanans.')->group(function () {
-            Route::patch('/checkin', 'checkIn')->name('checkin');
-            Route::patch('/checkout', 'checkout')->name('checkout');
-            Route::patch('/confirm', 'confirm')->name('confirm');
+    Route::controller(ResetPasswordController::class)->group(function () {
+        Route::get('/reset-password/{token}', 'showResetForm')->name('password.reset');
+        Route::post('/reset-password', 'reset')->name('password.update');
+    });
+
+    // --- Rute Verifikasi Email ---
+    Route::middleware('auth')->group(function () {
+        Route::controller(VerificationController::class)->group(function () {
+            Route::get('/email/verify', 'show')->name('verification.notice');
+            Route::get('/email/verify/{id}/{hash}', 'verify')->middleware(['signed'])->name('verification.verify');
+            Route::post('/email/verification-notification', 'resend')->middleware(['throttle:6,1'])->name('verification.send');
+        });
+    });
+
+    // --- Grup Rute yang MEMERLUKAN AUTENTIKASI ---
+    Route::middleware('auth')->group(function () {
+
+        Route::get('/profile', function () {
+            return view('user.pages.profile', ['user' => Illuminate\Support\Facades\Auth::user()]);
+        })->name('profile');
+
+        // Rute Pemesanan Kamar (User Biasa)
+        Route::controller(BookingController::class)->middleware('verified')->group(function () {
+            Route::get('/pesan-kamar/{kamar}', 'showBookingForm')->name('booking.create');
+            Route::post('/pesan-kamar', 'store')->name('booking.store');
+            Route::get('/pesanan/{id}', 'detail')->name('booking.detail');
+
+            Route::get('/pembayaran/{id}', 'showPayment')->name('booking.payment');
+            Route::get('/pembayaran/{id}/check', 'checkPaymentStatus')->name('booking.payment.check');
+            Route::post('/pembayaran/{id}/cancel', 'cancelBooking')->name('booking.payment.cancel');
+            Route::get('/simulasi/qr-scan/{id}', 'simulatePaymentSuccess')->name('simulation.qr.scan');
         });
 
-        Route::controller(PemesananController::class)->group(function () {
-            // Menggantikan riwayat-transaksi lama
-            Route::get('riwayat/pemesanan', 'riwayat')->name('riwayat.pemesanan');
-            Route::get('riwayat/pemesanan/{id}', 'detailRiwayat')->name('riwayat.detail');
+        // --- Grup Rute Khusus ADMIN ---
+        Route::middleware(['auth', RoleMiddleware::class . ':admin'])->prefix('admin')->name('admin.')->group(function () {
+
+            Route::get('/dashboard', [DashboardAdminController::class, 'index'])->name('dashboard');
+
+            // CRUD Resources
+            Route::resource('kamars', KamarController::class);
+            Route::resource('tipe_kamars', TipeKamarController::class);
+            Route::resource('users', UserController::class);
+            Route::resource('fasilitas', FasilitasController::class);
+
+            // Grup Rute Pemesanan
+            Route::resource('pemesanans', PemesananController::class);
+            Route::controller(PemesananController::class)->prefix('pemesanans/{pemesanan}')->name('pemesanans.')->group(function () {
+                Route::patch('/checkin', 'checkIn')->name('checkin');
+                Route::patch('/checkout', 'checkout')->name('checkout');
+                Route::patch('/confirm', 'confirm')->name('confirm');
+            });
+
+            Route::controller(PemesananController::class)->group(function () {
+                // Menggantikan riwayat-transaksi lama
+                Route::get('riwayat/pemesanan', 'riwayat')->name('riwayat.pemesanan');
+                Route::get('riwayat/pemesanan/{id}', 'detailRiwayat')->name('riwayat.detail');
+            });
         });
     });
 });

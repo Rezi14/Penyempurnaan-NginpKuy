@@ -6,15 +6,7 @@
 
         <a class="navbar-brand" href="{{ route('admin.dashboard') }}">Admin Roomify</a>
 
-        <div class="ms-auto">
-            @if (Auth::check())
-                <form action="{{ route('logout') }}" method="POST" class="d-flex">
-                    @csrf
-                    <button type="submit" class="btn btn-danger btn-sm">
-                        <i class="fas fa-sign-out-alt me-1"></i> Logout
-                    </button>
-                </form>
-            @endif
-        </div>
+        {{-- Bagian Logout dihapus dari sini --}}
+
     </div>
 </nav>

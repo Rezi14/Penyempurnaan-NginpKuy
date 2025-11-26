@@ -185,6 +185,19 @@ class BookingController extends Controller
         return back();
     }
 
+    public function detail($id)
+    {
+        // Ambil data pesanan beserta relasi kamar, tipe kamar, dan fasilitas
+        $pemesanan = Pemesanan::with(['kamar.tipeKamar', 'user'])->findOrFail($id);
+
+        // Keamanan: Pastikan user yang login adalah pemilik pesanan ini
+        if (auth()->id() !== $pemesanan->id_user) {
+            abort(403, 'ANDA TIDAK MEMILIKI AKSES KE HALAMAN INI.');
+        }
+
+        return view('user.pages.order-detail', compact('pemesanan'));
+    }
+    
     public function simulatePaymentSuccess($id)
     {
         $pemesanan = Pemesanan::with('kamar')->findOrFail($id);

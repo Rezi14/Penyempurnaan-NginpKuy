@@ -229,7 +229,7 @@ class PemesananController extends Controller
 
                 // Set waktu checkout jika belum ada
                 if (is_null($pemesanan->check_out_date)) {
-                    $pemesanan->check_out_date = Carbon::now();
+                    $pemesanan->check_out_date = Carbon::carbon();
                 }
 
                 $pemesanan->save();

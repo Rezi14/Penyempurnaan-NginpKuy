@@ -1,8 +1,11 @@
 <div class="container-fluid grow d-flex">
     {{-- Sidebar Navigasi Admin --}}
-    <div class="sidebar">
+    {{-- Tambahkan 'd-flex flex-column' agar sidebar menjadi flex container vertikal --}}
+    <div class="sidebar d-flex flex-column">
         <h5 class="text-white mb-4">Navigasi Admin</h5>
-        <ul class="nav flex-column">
+
+        {{-- Tambahkan 'mb-auto' agar list menu mengisi ruang dan mendorong elemen bawah ke dasar --}}
+        <ul class="nav flex-column mb-auto">
             <li class="nav-item">
                 <a class="nav-link {{ request()->routeIs('admin.dashboard') ? 'active' : '' }}"
                     href="{{ route('admin.dashboard') }}">
@@ -47,4 +50,18 @@
                 </a>
             </li>
         </ul>
+
+        {{-- Tombol Logout Ditambahkan di Sini --}}
+        <div class="mt-4 pt-3 border-top border-secondary">
+            @if (Auth::check())
+                <form action="{{ route('logout') }}" method="POST">
+                    @csrf
+                    <button type="submit" class="btn btn-danger w-100">
+                        <i class="fas fa-sign-out-alt me-2"></i> Logout
+                    </button>
+                </form>
+            @endif
+        </div>
     </div>
+{{-- Penutup div container-fluid (jika ada di file asli, pastikan tag penutup sesuai) --}}
+</div>
