@@ -26,7 +26,7 @@
         {{-- Tabel Riwayat Transaksi --}}
         <div class="card p-4 shadow-sm">
             <div class="card-body">
-                @if ($riwayatTransaksi->isEmpty())
+                @if ($riwayatPemesanan->isEmpty())
                     <div class="alert alert-info text-center mb-0">
                         Tidak ada riwayat transaksi yang tersedia.
                     </div>
@@ -48,7 +48,7 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                @foreach ($riwayatTransaksi as $pemesanan)
+                                @foreach ($riwayatPemesanan as $pemesanan)
                                     <tr>
                                         {{-- Kolom ID Dihapus --}}
                                         <td>{{ $pemesanan->user->name ?? 'N/A' }}</td>
@@ -77,7 +77,7 @@
                                         <td>{{ \Carbon\Carbon::parse($pemesanan->updated_at)->format('d M Y H:i:s') }}</td>
                                         <td>
                                             <div class="d-grid gap-1">
-                                                <a href="{{ route('admin.riwayat.edit', $pemesanan->id_pemesanan) }}"
+                                                <a href="{{ route('admin.riwayat.detail', $pemesanan->id_pemesanan) }}"
                                                     class="btn btn-sm btn-info w-100 text-white" title="Lihat Detail">
                                                     <i class="fas fa-eye"></i> Detail
                                                 </a>

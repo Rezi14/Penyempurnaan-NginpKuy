@@ -29,33 +29,24 @@ use App\Http\Controllers\Auth\VerificationController;
 |--------------------------------------------------------------------------
 | Web Routes
 |--------------------------------------------------------------------------
-|
-| Di sinilah Anda dapat mendaftarkan rute web untuk aplikasi Anda.
-|
 */
 
 // --- Rute Umum (BISA DIAKSES TANPA LOGIN) ---
-
-// Jadikan URL / (root) me-redirect ke halaman dashboard
 Route::get('/', function () {
     return redirect()->route('dashboard');
 });
 
-// Jadikan /dashboard sebagai rute utama dengan nama 'dashboard'
 Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
 Route::get('/kontak', function () {
-    return view('user.pages.contact'); // Placeholder view
+    return view('user.pages.contact');
 })->name('contact');
 
-
-// --- Rute Autentikasi (Login, Register, Logout) ---
+// --- Rute Autentikasi ---
 Route::controller(LoginController::class)->group(function () {
     Route::get('/login', 'showLoginForm')->name('login');
     Route::post('/login', 'login');
     Route::post('/logout', 'logout')->name('logout');
-
-
 });
 
 Route::controller(RegisterController::class)->group(function () {
@@ -83,7 +74,7 @@ Route::middleware('auth')->group(function () {
     });
 });
 
-// --- Grup Rute yang MEMERLUKAN AUTENTIKASI (Login) ---
+// --- Grup Rute yang MEMERLUKAN AUTENTIKASI ---
 Route::middleware('auth')->group(function () {
 
     Route::get('/profile', function () {
@@ -96,20 +87,12 @@ Route::middleware('auth')->group(function () {
         Route::post('/pesan-kamar', 'store')->name('booking.store');
 
         Route::get('/pembayaran/{id}', 'showPayment')->name('booking.payment');
-
-        // 2. Cek Status (Dipanggil otomatis oleh JavaScript setiap detik)
         Route::get('/pembayaran/{id}/check', 'checkPaymentStatus')->name('booking.payment.check');
-
-        // 3. Batalkan Pesanan (Manual oleh user)
         Route::post('/pembayaran/{id}/cancel', 'cancelBooking')->name('booking.payment.cancel');
-
-        // 4. SIMULASI: Link ini berpura-pura menjadi sistem bank/QRIS yang menerima pembayaran
-        // (Anda bisa membuka link ini di tab baru untuk mengetes 'Scan QR berhasil')
         Route::get('/simulasi/qr-scan/{id}', 'simulatePaymentSuccess')->name('simulation.qr.scan');
     });
 
     // --- Grup Rute Khusus ADMIN ---
-    // Middleware 'auth' tidak perlu ditulis lagi karena sudah dicakup oleh grup luar
     Route::middleware(['auth', RoleMiddleware::class . ':admin'])->prefix('admin')->name('admin.')->group(function () {
 
         Route::get('/dashboard', [DashboardAdminController::class, 'index'])->name('dashboard');
@@ -120,7 +103,7 @@ Route::middleware('auth')->group(function () {
         Route::resource('users', UserController::class);
         Route::resource('fasilitas', FasilitasController::class);
 
-        // Grup Rute Pemesanan (Resource + Aksi Tambahan)
+        // Grup Rute Pemesanan
         Route::resource('pemesanans', PemesananController::class);
         Route::controller(PemesananController::class)->prefix('pemesanans/{pemesanan}')->name('pemesanans.')->group(function () {
             Route::patch('/checkin', 'checkIn')->name('checkin');
@@ -128,15 +111,10 @@ Route::middleware('auth')->group(function () {
             Route::patch('/confirm', 'confirm')->name('confirm');
         });
 
-        // Grup Rute Pembayaran
-        Route::controller(PembayaranController::class)->group(function () {
-            Route::get('pembayaran/{pemesanan}', 'show')->name('pembayaran.show');
-            Route::post('pembayaran/{pemesanan}/process', 'process')->name('pembayaran.process');
-            Route::get('riwayat-transaksi', 'history')->name('riwayat.transaksi');
+        Route::controller(PemesananController::class)->group(function () {
+            // Menggantikan riwayat-transaksi lama
+            Route::get('riwayat/pemesanan', 'riwayat')->name('riwayat.pemesanan');
+            Route::get('riwayat/pemesanan/{id}', 'detailRiwayat')->name('riwayat.detail');
         });
-
-        // Rute fasilitas yang di-comment sebelumnya
-        // Route::put('fasilitas/{fasilitas}', [FasilitasController::class, 'update'])->name('fasilitas.update');
-        // Note: Route::resource('fasilitas', ...) sudah mencakup update, jadi baris ini mungkin tidak perlu
     });
 });

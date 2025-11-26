@@ -61,13 +61,14 @@
             </div>
             <div class="card-body">
                 @if ($pelangganCheckin->isEmpty())
-                    <p class="text-center">Tidak ada pelanggan yang sedang menginap saat ini.</p>
+                    <div class="alert alert-info text-center mb-0">
+                        Tidak ada pelanggan yang sedang menginap saat ini.
+                    </div>
                 @else
                     <div class="table-responsive">
                         <table class="table table-hover table-striped">
                             <thead>
                                 <tr>
-                                    <th>ID Pemesanan</th>
                                     <th>Pelanggan</th>
                                     <th>Kamar</th>
                                     <th>Tipe Kamar</th>
@@ -81,7 +82,6 @@
                             <tbody>
                                 @foreach ($pelangganCheckin as $pemesanan)
                                     <tr>
-                                        <td data-label="ID Pemesanan">{{ $pemesanan->id_pemesanan }}</td>
                                         <td data-label="Pelanggan">{{ $pemesanan->user->name }}</td>
                                         <td data-label="Kamar">{{ $pemesanan->kamar->nomor_kamar }}</td>
                                         <td data-label="Tipe Kamar">{{ $pemesanan->kamar->tipeKamar->nama_tipe_kamar }}</td>

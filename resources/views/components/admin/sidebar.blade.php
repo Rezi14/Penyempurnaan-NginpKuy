@@ -39,10 +39,11 @@
                     <i class="fas fa-spa me-2"></i> Manajemen Fasilitas
                 </a>
             </li>
+            {{-- Update Link ke Riwayat Pemesanan --}}
             <li class="nav-item">
-                <a class="nav-link {{ request()->routeIs('admin.riwayat.transaksi') ? 'active' : '' }}"
-                    href="{{ route('admin.riwayat.transaksi') }}">
-                    <i class="fas fa-history me-2"></i> Riwayat Transaksi
+                <a class="nav-link {{ request()->routeIs('admin.riwayat.pemesanan') ? 'active' : '' }}"
+                    href="{{ route('admin.riwayat.pemesanan') }}">
+                    <i class="fas fa-history me-2"></i> Riwayat Pemesanan
                 </a>
             </li>
         </ul>

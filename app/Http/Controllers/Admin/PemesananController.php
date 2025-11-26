@@ -53,7 +53,7 @@ class PemesananController extends Controller
             'kamar_id' => 'required|exists:kamars,id_kamar',
             'check_in_date' => 'required|date',
             'check_out_date' => 'required|date|after:check_in_date',
-            'jumlah_tamu' => 'required|integer|min:1', // Perbaikan di sini
+            'jumlah_tamu' => 'required|integer|min:1',
             'total_harga' => 'required|numeric|min:0',
             'status_pemesanan' => 'required|string|in:pending,confirmed,checked_in,checked_out,cancelled,paid',
             'fasilitas_tambahan' => 'nullable|array',
@@ -88,7 +88,7 @@ class PemesananController extends Controller
                 'kamar_id' => $request->input('kamar_id'),
                 'check_in_date' => $request->input('check_in_date'),
                 'check_out_date' => $request->input('check_out_date'),
-                'jumlah_tamu' => $request->input('jumlah_tamu'), // Perbaikan di sini
+                'jumlah_tamu' => $request->input('jumlah_tamu'),
                 'total_harga' => $request->input('total_harga'),
                 'status_pemesanan' => $request->input('status_pemesanan'),
             ]);
@@ -138,7 +138,7 @@ class PemesananController extends Controller
             'kamar_id' => 'required|exists:kamars,id_kamar',
             'check_in_date' => 'required|date',
             'check_out_date' => 'required|date|after:check_in_date',
-            'jumlah_tamu' => 'required|integer|min:1', // Tambahkan ini
+            'jumlah_tamu' => 'required|integer|min:1',
             'total_harga' => 'required|numeric|min:0',
             'status_pemesanan' => 'required|string|in:pending,confirmed,checked_in,checked_out,cancelled,paid',
             'fasilitas_tambahan' => 'nullable|array',
@@ -166,7 +166,7 @@ class PemesananController extends Controller
                 'kamar_id' => $request->input('kamar_id'),
                 'check_in_date' => $request->input('check_in_date'),
                 'check_out_date' => $request->input('check_out_date'),
-                'jumlah_tamu' => $request->input('jumlah_tamu'), // Tambahkan ini
+                'jumlah_tamu' => $request->input('jumlah_tamu'),
                 'total_harga' => $finalTotalHarga,
                 'status_pemesanan' => $request->input('status_pemesanan'),
             ]);
@@ -217,28 +217,61 @@ class PemesananController extends Controller
     }
 
     /**
-     * Mengubah status pemesanan menjadi 'checked_out' dan MENGARAHKAN KE HALAMAN PEMBAYARAN.
+     * Mengubah status pemesanan menjadi 'paid' (Selesai) tanpa perhitungan pembayaran ulang.
      */
     public function checkout(Pemesanan $pemesanan)
     {
         try {
             if ($pemesanan->status_pemesanan === 'checked_in') {
-                // Perbarui status pemesanan menjadi 'checked_out'
-                $pemesanan->status_pemesanan = 'checked_out';
+                // UPDATE: Langsung ubah status menjadi 'paid' karena pembayaran sudah di muka.
+                // Status 'paid' akan memindahkan data ini ke riwayat transaksi.
+                $pemesanan->status_pemesanan = 'paid';
+
+                // Set waktu checkout jika belum ada
                 if (is_null($pemesanan->check_out_date)) {
                     $pemesanan->check_out_date = Carbon::now();
                 }
+
                 $pemesanan->save();
 
-                // Redirect ke halaman pembayaran, bawa ID pemesanan
-                return redirect()->route('admin.pembayaran.show', $pemesanan->id_pemesanan)
-                                ->with('success', 'Pemesanan berhasil di-check out. Lanjutkan ke pembayaran.');
+                // Pastikan kamar tersedia kembali untuk dipesan
+                $kamar = $pemesanan->kamar;
+                if ($kamar) {
+                    $kamar->status_kamar = 1; // Tersedia
+                    $kamar->save();
+                }
+
+                // Redirect kembali ke daftar pemesanan (item ini akan hilang dari list aktif)
+                return redirect()->route('admin.pemesanans.index')
+                                ->with('success', 'Check out berhasil. Transaksi selesai (Pembayaran Lunas).');
             } else {
                 return redirect()->back()->with('error', 'Pemesanan tidak dapat di-check out karena statusnya bukan "Checked In".');
             }
         } catch (\Exception $e) {
             return redirect()->back()->with('error', 'Terjadi kesalahan saat melakukan check out: ' . $e->getMessage());
         }
+    }
+    public function riwayat()
+    {
+        $riwayatPemesanan = Pemesanan::with(['user', 'kamar.tipeKamar'])
+                                    ->whereIn('status_pemesanan', ['paid', 'cancelled'])
+                                    ->orderBy('updated_at', 'desc') // Urutkan berdasarkan waktu transaksi terakhir
+                                    ->get();
+
+        return view('admin.riwayat.pemesanan', compact('riwayatPemesanan'));
+    }
+
+    public function detailRiwayat($id)
+    {
+        $pemesanan = Pemesanan::with(['user', 'kamar.tipeKamar', 'fasilitas'])->findOrFail($id);
+
+        // Pastikan hanya bisa akses yang statusnya sudah selesai
+        if (!in_array($pemesanan->status_pemesanan, ['paid', 'cancelled'])) {
+            return redirect()->route('admin.pemesanans.index')
+                             ->with('error', 'Pesanan ini masih aktif, bukan riwayat.');
+        }
+
+        return view('admin.riwayat.detail', compact('pemesanan'));
     }
 
     /**
