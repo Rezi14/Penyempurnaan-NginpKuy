@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use App\Http\Middleware\RoleMiddleware;
 
 // --- Import Semua Controller di Atas ---
 
@@ -109,9 +110,9 @@ Route::middleware('auth')->group(function () {
 
     // --- Grup Rute Khusus ADMIN ---
     // Middleware 'auth' tidak perlu ditulis lagi karena sudah dicakup oleh grup luar
-    Route::middleware('role')->prefix('admin')->name('admin.')->group(function () {
+    Route::middleware(['auth', RoleMiddleware::class . ':admin'])->prefix('admin')->name('admin.')->group(function () {
 
-        Route::get('/dashboard-admin', [DashboardAdminController::class, 'index'])->name('dashboard');
+        Route::get('/dashboard', [DashboardAdminController::class, 'index'])->name('dashboard');
 
         // CRUD Resources
         Route::resource('kamars', KamarController::class);
