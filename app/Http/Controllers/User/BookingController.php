@@ -22,17 +22,17 @@ class BookingController extends Controller
         // 1. TAMBAHAN PENTING: Cek apakah user punya pesanan yang masih 'pending'
         // Jika ada, paksa user untuk menyelesaikannya terlebih dahulu
         $pendingBooking = Pemesanan::where('user_id', Auth::id())
-                                   ->where('status_pemesanan', 'pending')
-                                   ->first();
+            ->where('status_pemesanan', 'pending')
+            ->first();
 
         if ($pendingBooking) {
             return redirect()->route('booking.payment', $pendingBooking->id_pemesanan)
-                             ->with('error', 'Anda masih memiliki pesanan yang belum diselesaikan. Silakan bayar atau batalkan pesanan tersebut untuk memesan kamar baru.');
+                ->with('error', 'Anda masih memiliki pesanan yang belum diselesaikan. Silakan bayar atau batalkan pesanan tersebut untuk memesan kamar baru.');
         }
 
         // Cek jika kamar sedang tidak tersedia (preventif jika ada yang akses URL langsung)
         if ($kamar->status_kamar == 0) {
-             return redirect()->route('dashboard')->with('error', 'Maaf, kamar ini baru saja dipesan orang lain.');
+            return redirect()->route('dashboard')->with('error', 'Maaf, kamar ini baru saja dipesan orang lain.');
         }
 
         $kamar->load('tipeKamar');
@@ -46,12 +46,12 @@ class BookingController extends Controller
     {
         // 2. TAMBAHAN PENTING: Cek lagi di method store untuk keamanan ganda
         $pendingBooking = Pemesanan::where('user_id', Auth::id())
-                                   ->where('status_pemesanan', 'pending')
-                                   ->first();
+            ->where('status_pemesanan', 'pending')
+            ->first();
 
         if ($pendingBooking) {
             return redirect()->route('booking.payment', $pendingBooking->id_pemesanan)
-                             ->with('error', 'Transaksi sebelumnya belum selesai. Harap selesaikan pembayaran terlebih dahulu.');
+                ->with('error', 'Transaksi sebelumnya belum selesai. Harap selesaikan pembayaran terlebih dahulu.');
         }
 
         $request->validate([
@@ -111,7 +111,7 @@ class BookingController extends Controller
         $kamar->save();
 
         return redirect()->route('booking.payment', $pemesanan->id_pemesanan)
-                         ->with('success', 'Pesanan berhasil! Silakan selesaikan pembayaran dalam 10 menit.');
+            ->with('success', 'Pesanan berhasil! Silakan selesaikan pembayaran dalam 10 menit.');
     }
 
     // ... (method showPayment, checkPaymentStatus, dll biarkan seperti semula)
@@ -164,7 +164,7 @@ class BookingController extends Controller
         }
 
         if ($pemesanan->status_pemesanan == 'cancelled') {
-             return response()->json(['status' => 'expired']);
+            return response()->json(['status' => 'expired']);
         }
 
         return response()->json(['status' => 'pending']);
@@ -188,16 +188,17 @@ class BookingController extends Controller
     public function detail($id)
     {
         // Ambil data pesanan beserta relasi kamar, tipe kamar, dan fasilitas
-        $pemesanan = Pemesanan::with(['kamar.tipeKamar', 'user'])->findOrFail($id);
+        $pemesanan = Pemesanan::with(['kamar.tipeKamar', 'user', 'fasilitas'])
+            ->findOrFail($id);
 
         // Keamanan: Pastikan user yang login adalah pemilik pesanan ini
-        if (auth()->id() !== $pemesanan->id_user) {
+        if (auth()->id() !== $pemesanan->user_id) {
             abort(403, 'ANDA TIDAK MEMILIKI AKSES KE HALAMAN INI.');
         }
 
         return view('user.pages.order-detail', compact('pemesanan'));
     }
-    
+
     public function simulatePaymentSuccess($id)
     {
         $pemesanan = Pemesanan::with('kamar')->findOrFail($id);

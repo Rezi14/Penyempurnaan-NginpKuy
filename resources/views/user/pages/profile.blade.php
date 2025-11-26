@@ -115,13 +115,12 @@
                                                 </td>
                                                 <td class="text-end pe-4">
                                                     @if ($pemesanan->status_pemesanan == 'pending')
-                                                        <a href="{{ route('booking.payment', $pemesanan->id) }}"
+                                                        <a href="{{ route('booking.payment', $pemesanan->id_pemesanan) }}"
                                                             class="btn btn-sm btn-primary fw-bold">
                                                             Bayar
                                                         </a>
                                                     @else
-                                                        {{-- UBAH BAGIAN INI --}}
-                                                        <a href="{{ route('booking.detail', $pemesanan->id) }}"
+                                                        <a href="{{ route('booking.detail', $pemesanan->id_pemesanan) }}"
                                                             class="btn btn-sm btn-outline-primary border">
                                                             Detail
                                                         </a>
