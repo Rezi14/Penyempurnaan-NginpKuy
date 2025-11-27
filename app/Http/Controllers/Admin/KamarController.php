@@ -25,7 +25,7 @@ class KamarController extends Controller
      */
     public function create()
     {
-        $tipeKamars = TipeKamar::all(); // Ambil semua tipe kamar untuk dropdown
+        $tipeKamars = TipeKamar::orderBy('id_tipe_kamar', 'asc')->get(); // Ambil semua tipe kamar untuk dropdown
         return view('admin.kamars.create', compact('tipeKamars'));
     }
 
@@ -50,7 +50,7 @@ class KamarController extends Controller
      */
     public function edit(Kamar $kamar)
     {
-        $tipeKamars = TipeKamar::all();
+        $tipeKamars = TipeKamar::orderBy('id_tipe_kamar', 'asc')->get();
         return view('admin.kamars.edit', compact('kamar', 'tipeKamars'));
     }
 

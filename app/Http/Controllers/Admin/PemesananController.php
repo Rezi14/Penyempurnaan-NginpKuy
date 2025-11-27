@@ -110,8 +110,8 @@ class PemesananController extends Controller
             }
 
             // 5. Update Status Kamar (Opsional: Jika ingin langsung mengubah status kamar jadi terisi)
-            // $kamar = Kamar::find($request->input('kamar_id'));
-            // $kamar->update(['status_kamar' => 0]);
+            $kamar = Kamar::find($request->input('kamar_id'));
+            $kamar->update(['status_kamar' => 0]);
 
             return redirect()->route('admin.pemesanans.index')->with('success', 'Pemesanan berhasil ditambahkan!');
 
@@ -296,9 +296,33 @@ class PemesananController extends Controller
     public function destroy(Pemesanan $pemesanan)
     {
         try {
-            $pemesanan->fasilitas()->detach();
-            $pemesanan->delete();
-            return redirect()->route('admin.pemesanans.index')->with('success', 'Pemesanan berhasil dihapus!');
+            // 1. VALIDASI KHUSUS: Confirmed & Checked In
+            // Hanya boleh dihapus jika waktu sekarang sudah melewati tanggal checkout
+            if (in_array($pemesanan->status_pemesanan, ['confirmed', 'checked_in'])) {
+
+                // Ambil tanggal checkout dan set ke akhir hari (23:59:59)
+                $checkOutDate = Carbon::parse($pemesanan->check_out_date)->endOfDay();
+
+                // Jika sekarang (now) masih sebelum waktu checkout berakhir
+                if (Carbon::now()->lessThan($checkOutDate)) {
+                    return redirect()->back()->with('error', 'Gagal Hapus: Pemesanan yang sedang berjalan (Confirmed/Checked In) hanya dapat dihapus setelah melewati tanggal checkout.');
+                }
+            }
+
+            // 2. KEMBALIKAN STATUS KAMAR JADI TERSEDIA
+            // Setiap kali pemesanan dihapus (baik pending, cancelled, atau riwayat), kamar harus dipastikan tersedia kembali
+            $kamar = $pemesanan->kamar;
+            if ($kamar) {
+                $kamar->status_kamar = 1; // 1 = Tersedia
+                $kamar->save();
+            }
+
+            // 3. Hapus Data
+            $pemesanan->fasilitas()->detach(); // Hapus relasi fasilitas
+            $pemesanan->delete(); // Hapus data pemesanan
+
+            return redirect()->route('admin.pemesanans.index')->with('success', 'Pemesanan berhasil dihapus dan kamar kini tersedia kembali!');
+
         } catch (\Exception $e) {
             return redirect()->back()->with('error', 'Terjadi kesalahan saat menghapus pemesanan: ' . $e->getMessage());
         }
