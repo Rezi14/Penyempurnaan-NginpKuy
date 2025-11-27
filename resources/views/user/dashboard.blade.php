@@ -23,7 +23,7 @@
         {{-- Intro Card --}}
         <div class="intro-card mb-4 mb-md-5 text-center">
             <div class="card-body">
-                <h2 class="card-title fs-3 fs-md-2 mb-2">👋 Selamat Datang, {{ Auth::check() ? Auth::user()->name : 'Pengunjung' }}!</h2>
+                <h2 class="card-title fs-3 fs-md-2 mb-2">👋 Selamat Datang, {{ Auth::check() ? Auth::user()->name : 'Roomifers' }}!</h2>
                 <p class="card-text fs-6 fs-md-5 opacity-75">Temukan kenyamanan dan kemewahan dalam pilihan kamar terbaik kami.</p>
             </div>
         </div>

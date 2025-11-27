@@ -12,7 +12,7 @@
         <div class="container-fluid px-4">
             {{-- Brand / Sapaan User --}}
             <a class="navbar-brand fs-4 fw-bold" href="{{ route('dashboard') }}">
-                Halo, {{ Auth::check() ? Auth::user()->name : 'Pengunjung' }}!
+                Halo, {{ Auth::check() ? Auth::user()->name : 'Roomifers' }}!
             </a>
 
             {{-- Tombol Toggler (Hamburger) untuk Mobile --}}
