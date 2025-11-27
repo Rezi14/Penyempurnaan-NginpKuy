@@ -109,7 +109,6 @@ class BookingController extends Controller
                 }
 
                 // Update Status Kamar
-                $kamar->status_kamar = 0;
                 $kamar->save();
 
                 return redirect()->route('booking.payment', $pemesanan->id_pemesanan)
