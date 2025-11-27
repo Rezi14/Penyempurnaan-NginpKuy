@@ -19,6 +19,7 @@ class DashboardAdminController extends Controller
         // Ambil pemesanan yang statusnya 'checked_in' dan belum check-out
         $pelangganCheckin = Pemesanan::with(['user', 'kamar.tipeKamar', 'fasilitas']) // Muat relasi fasilitas juga
             ->where('status_pemesanan', 'checked_in')
+            ->orderBy('id_pemesanan','asc')
             ->get();
 
         return view('Admin.dashboard', compact('totalKamar', 'totalPemesanan', 'totalPengguna', 'pelangganCheckin'));

@@ -23,9 +23,9 @@ class PemesananController extends Controller
     {
         // Hanya tampilkan pemesanan yang statusnya bukan 'paid' atau 'cancelled' di dashboard utama
         $pemesanans = Pemesanan::with(['user', 'kamar.tipeKamar', 'fasilitas'])
-                               ->whereNotIn('status_pemesanan', ['paid', 'cancelled'])
-                               ->orderBy('check_in_date', 'desc')
-                               ->get();
+            ->whereNotIn('status_pemesanan', ['paid', 'cancelled'])
+            ->orderBy('check_in_date', 'desc')
+            ->get();
 
         return view('admin.pemesanans.index', compact('pemesanans'));
     }
@@ -35,10 +35,11 @@ class PemesananController extends Controller
      */
     public function create()
     {
-        $users = User::all();
+        $users = User::where('id_role', '!=', 1)->get(); // Opsional: Ambil user selain admin
         $kamars = Kamar::with('tipeKamar')
-                ->orderBy('nomor_kamar', 'asc') // urut berdasarkan id_kamar (naik)
-                ->get();
+            ->where('status_kamar', 1) // Hanya tampilkan kamar yang tersedia (true/1)
+            ->orderBy('nomor_kamar', 'asc')
+            ->get();
         $fasilitas = Fasilitas::where('biaya_tambahan', '>', 0)->get();
 
         return view('admin.pemesanans.create', compact('users', 'kamars', 'fasilitas'));
@@ -49,9 +50,10 @@ class PemesananController extends Controller
      */
     public function store(Request $request)
     {
+        // 1. Validasi Input
         $rules = [
             'kamar_id' => 'required|exists:kamars,id_kamar',
-            'check_in_date' => 'required|date',
+            'check_in_date' => 'required|date|after_or_equal:today',
             'check_out_date' => 'required|date|after:check_in_date',
             'jumlah_tamu' => 'required|integer|min:1',
             'total_harga' => 'required|numeric|min:0',
@@ -60,6 +62,7 @@ class PemesananController extends Controller
             'fasilitas_tambahan.*' => 'exists:fasilitas,id_fasilitas',
         ];
 
+        // Validasi khusus tipe pelanggan
         if ($request->input('customer_type') === 'new') {
             $rules['new_user_name'] = 'required|string|max:255';
             $rules['new_user_email'] = 'required|string|email|max:255|unique:users,email';
@@ -70,19 +73,26 @@ class PemesananController extends Controller
         $request->validate($rules);
 
         try {
+            // 2. Tentukan User ID (Buat baru atau pakai yang ada)
             $userId = null;
             if ($request->input('customer_type') === 'new') {
+                // Cari Role Customer (sesuaikan nama kolom di DB Anda, biasanya 'nama_role' atau 'name')
+                // Asumsi berdasarkan User.php: kolomnya 'nama_role' dan PK 'id_role'
+                $customerRole = Role::where('nama_role', 'customer')->first();
+                $roleId = $customerRole ? $customerRole->id_role : 2; // Default ke 2 jika tidak ketemu
+
                 $newUser = User::create([
                     'name' => $request->input('new_user_name'),
                     'email' => $request->input('new_user_email'),
-                    'password' => Hash::make(Str::random(10)),
-                    'role_id' => Role::where('name', 'customer')->first()->id ?? 2,
+                    'password' => Hash::make('password123'), // Password default
+                    'id_role' => $roleId, // PERBAIKAN: Gunakan 'id_role', bukan 'role_id'
                 ]);
                 $userId = $newUser->id;
             } else {
                 $userId = $request->input('user_id');
             }
 
+            // 3. Simpan Pemesanan
             $pemesanan = Pemesanan::create([
                 'user_id' => $userId,
                 'kamar_id' => $request->input('kamar_id'),
@@ -93,16 +103,22 @@ class PemesananController extends Controller
                 'status_pemesanan' => $request->input('status_pemesanan'),
             ]);
 
+            // 4. Simpan Fasilitas Tambahan (Pivot Table)
             if ($request->has('fasilitas_tambahan')) {
+                // Attach fasilitas ke pemesanan
                 $pemesanan->fasilitas()->attach($request->input('fasilitas_tambahan'));
             }
 
-            return redirect()->route('admin.pemesanans.index')->with('success', 'Pemesanan dan pelanggan berhasil ditambahkan!');
+            // 5. Update Status Kamar (Opsional: Jika ingin langsung mengubah status kamar jadi terisi)
+            // $kamar = Kamar::find($request->input('kamar_id'));
+            // $kamar->update(['status_kamar' => 0]);
+
+            return redirect()->route('admin.pemesanans.index')->with('success', 'Pemesanan berhasil ditambahkan!');
 
         } catch (ValidationException $e) {
             return redirect()->back()->withErrors($e->errors())->withInput();
         } catch (\Exception $e) {
-            return redirect()->back()->with('error', 'Terjadi kesalahan saat menambahkan pemesanan: ' . $e->getMessage())->withInput();
+            return redirect()->back()->with('error', 'Gagal menyimpan: ' . $e->getMessage())->withInput();
         }
     }
 
@@ -243,7 +259,7 @@ class PemesananController extends Controller
 
                 // Redirect kembali ke daftar pemesanan (item ini akan hilang dari list aktif)
                 return redirect()->route('admin.dashboard')
-                                ->with('success', 'Check out berhasil. Transaksi selesai (Pembayaran Lunas).');
+                    ->with('success', 'Check out berhasil. Transaksi selesai (Pembayaran Lunas).');
             } else {
                 return redirect()->back()->with('error', 'Pemesanan tidak dapat di-check out karena statusnya bukan "Checked In".');
             }
@@ -254,9 +270,9 @@ class PemesananController extends Controller
     public function riwayat()
     {
         $riwayatPemesanan = Pemesanan::with(['user', 'kamar.tipeKamar'])
-                                    ->whereIn('status_pemesanan', ['paid', 'cancelled'])
-                                    ->orderBy('updated_at', 'desc') // Urutkan berdasarkan waktu transaksi terakhir
-                                    ->get();
+            ->whereIn('status_pemesanan', ['paid', 'cancelled'])
+            ->orderBy('updated_at', 'desc') // Urutkan berdasarkan waktu transaksi terakhir
+            ->get();
 
         return view('admin.riwayat.pemesanan', compact('riwayatPemesanan'));
     }
@@ -268,7 +284,7 @@ class PemesananController extends Controller
         // Pastikan hanya bisa akses yang statusnya sudah selesai
         if (!in_array($pemesanan->status_pemesanan, ['paid', 'cancelled'])) {
             return redirect()->route('admin.pemesanans.index')
-                             ->with('error', 'Pesanan ini masih aktif, bukan riwayat.');
+                ->with('error', 'Pesanan ini masih aktif, bukan riwayat.');
         }
 
         return view('admin.riwayat.detail', compact('pemesanan'));

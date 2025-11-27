@@ -36,7 +36,7 @@ class KamarController extends Controller
     {
         $request->validate([
             'nomor_kamar' => 'required|string|max:255|unique:kamars',
-            'tipe_kamar_id' => 'required|exists:tipe_kamars,id_tipe_kamar',
+            'id_tipe_kamar' => ['required', 'exists:tipe_kamars,id_tipe_kamar'],
             'status_kamar' => 'required|boolean', // 0 untuk Tidak Tersedia, 1 untuk Tersedia
         ]);
 
@@ -60,9 +60,9 @@ class KamarController extends Controller
     public function update(Request $request, Kamar $kamar)
     {
         $request->validate([
-            'nomor_kamar' => 'required|string|max:255|unique:kamars,nomor_kamar,' . $kamar->id_kamar . ',id_kamar',
-            'tipe_kamar_id' => 'required|exists:tipe_kamars,id_tipe_kamar',
-            'status_kamar' => 'required|boolean',
+            'nomor_kamar' => ['required', 'string', 'max:50'],
+            'id_tipe_kamar' => ['required', 'exists:tipe_kamars,id_tipe_kamar'],
+            'status_kamar' => ['nullable', 'boolean'],
         ]);
 
         $kamar->update($request->all());
