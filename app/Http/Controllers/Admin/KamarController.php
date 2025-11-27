@@ -16,7 +16,7 @@ class KamarController extends Controller
     {
         // Ambil semua kamar dengan memuat relasi tipeKamar
         $kamars = Kamar::with('tipeKamar')->orderBy('nomor_kamar')->get();
-        
+
         return view('admin.kamars.index', compact('kamars'));
     }
 
@@ -75,6 +75,15 @@ class KamarController extends Controller
      */
     public function destroy(Kamar $kamar)
     {
+        // Cek apakah ada pesanan aktif (pending/confirmed/checkin) untuk kamar ini
+        $pesananAktif = $kamar->pemesanans() // Asumsi kamu sudah buat relasi hasMany di model Kamar
+            ->whereIn('status_pemesanan', ['pending', 'confirmed', 'checkin'])
+            ->exists();
+
+        if ($pesananAktif) {
+            return back()->with('error', 'Kamar tidak bisa dihapus karena sedang dalam proses pemesanan atau digunakan.');
+        }
+
         $kamar->delete();
         return redirect()->route('admin.kamars.index')->with('success', 'Kamar berhasil dihapus!');
     }

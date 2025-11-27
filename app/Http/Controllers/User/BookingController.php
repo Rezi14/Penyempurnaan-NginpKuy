@@ -9,6 +9,7 @@ use App\Models\Pemesanan;
 use App\Models\Fasilitas;
 use Illuminate\Support\Facades\Auth;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\DB;
 
 class BookingController extends Controller
 {
@@ -64,54 +65,61 @@ class BookingController extends Controller
         ]);
 
         // Gunakan lockForUpdate untuk mencegah race condition (opsional tapi disarankan)
-        $kamar = Kamar::where('id_kamar', $request->kamar_id)->lockForUpdate()->first();
+        try {
+            // Mulai Transaksi Database
+            return DB::transaction(function () use ($request) {
 
-        // Cek lagi ketersediaan kamar sebelum menyimpan
-        if ($kamar->status_kamar == 0) {
-            return redirect()->route('dashboard')->with('error', 'Maaf, kamar ini baru saja dibooking oleh pengguna lain.');
+                // Lock kamar untuk mencegah race condition
+                $kamar = Kamar::where('id_kamar', $request->kamar_id)->lockForUpdate()->first();
+
+                // Cek ketersediaan di dalam lock
+                if ($kamar->status_kamar == 0) {
+                    // Throw exception agar di-catch catch block atau return redirect
+                    throw new \Exception('Maaf, kamar ini baru saja dibooking.');
+                }
+
+                // ... (Logika hitung harga tetap sama) ...
+                $kamar->load('tipeKamar');
+                $checkIn = Carbon::parse($request->check_in_date);
+                $checkOut = Carbon::parse($request->check_out_date);
+                $durasi = $checkIn->diffInDays($checkOut) ?: 1;
+
+                $totalHarga = $kamar->tipeKamar->harga_per_malam * $durasi;
+
+                // Hitung fasilitas
+                if ($request->has('fasilitas_ids')) {
+                    $fasilitas = Fasilitas::whereIn('id_fasilitas', $request->fasilitas_ids)->get();
+                    $totalHarga += $fasilitas->sum('biaya_tambahan');
+                }
+
+                // Create Pemesanan
+                $pemesanan = Pemesanan::create([
+                    'user_id' => Auth::id(),
+                    'kamar_id' => $kamar->id_kamar,
+                    'check_in_date' => $request->check_in_date,
+                    'check_out_date' => $request->check_out_date,
+                    'jumlah_tamu' => $request->jumlah_tamu,
+                    'total_harga' => $totalHarga,
+                    'status_pemesanan' => 'pending',
+                ]);
+
+                // Attach Fasilitas
+                if ($request->has('fasilitas_ids')) {
+                    $pemesanan->fasilitas()->attach($request->fasilitas_ids);
+                }
+
+                // Update Status Kamar
+                $kamar->status_kamar = 0;
+                $kamar->save();
+
+                return redirect()->route('booking.payment', $pemesanan->id_pemesanan)
+                    ->with('success', 'Pesanan berhasil! Silakan selesaikan pembayaran.');
+            });
+
+        } catch (\Exception $e) {
+            // Jika ada error, semua perubahan di atas dibatalkan (rollback)
+            return redirect()->route('dashboard')->with('error', $e->getMessage());
         }
-
-        $kamar->load('tipeKamar');
-
-        $checkIn = Carbon::parse($request->check_in_date);
-        $checkOut = Carbon::parse($request->check_out_date);
-        $durasiMenginap = $checkIn->diffInDays($checkOut);
-        if ($durasiMenginap == 0) {
-            $durasiMenginap = 1;
-        }
-
-        $hargaPerMalam = $kamar->tipeKamar->harga_per_malam;
-        $totalHarga = $hargaPerMalam * $durasiMenginap;
-
-        // Hitung biaya tambahan fasilitas
-        if ($request->has('fasilitas_ids') && is_array($request->fasilitas_ids)) {
-            $fasilitasDipilih = Fasilitas::whereIn('id_fasilitas', $request->fasilitas_ids)->get();
-            foreach ($fasilitasDipilih as $fasilitas) {
-                $totalHarga += $fasilitas->biaya_tambahan;
-            }
-        }
-
-        // Buat Pemesanan
-        $pemesanan = Pemesanan::create([
-            'user_id' => Auth::id(),
-            'kamar_id' => $kamar->id_kamar,
-            'check_in_date' => $request->check_in_date,
-            'check_out_date' => $request->check_out_date,
-            'jumlah_tamu' => $request->jumlah_tamu,
-            'total_harga' => $totalHarga,
-            'status_pemesanan' => 'pending',
-        ]);
-
-        if ($request->has('fasilitas_ids') && is_array($request->fasilitas_ids)) {
-            $pemesanan->fasilitas()->attach($request->fasilitas_ids);
-        }
-
-        // Set Kamar jadi TIDAK TERSEDIA (0) saat ini juga
-        $kamar->status_kamar = 0;
-        $kamar->save();
-
-        return redirect()->route('booking.payment', $pemesanan->id_pemesanan)
-            ->with('success', 'Pesanan berhasil! Silakan selesaikan pembayaran dalam 10 menit.');
     }
 
     // ... (method showPayment, checkPaymentStatus, dll biarkan seperti semula)
