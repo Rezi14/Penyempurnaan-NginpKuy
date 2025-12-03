@@ -20,26 +20,6 @@ class BookingController extends Controller
         $this->middleware('auth');
     }
 
-    /**
-     * Helper untuk menentukan batas tamu berdasarkan nama tipe kamar
-     */
-    private function getMaxGuestLimit($namaTipeKamar)
-    {
-        // Normalisasi string (huruf kecil semua) agar pencocokan lebih aman
-        $type = strtolower($namaTipeKamar);
-
-        if (str_contains($type, 'family')) {
-            return 8;
-        } elseif (str_contains($type, 'suite')) {
-            return 6;
-        } elseif (str_contains($type, 'deluxe')) {
-            return 4;
-        } else {
-            // Default untuk Standard dan lain-lain
-            return 2;
-        }
-    }
-
     public function showBookingForm(Kamar $kamar)
     {
         // 1. Cek pending booking
@@ -59,13 +39,13 @@ class BookingController extends Controller
 
         $kamar->load('tipeKamar');
 
-        // --- LOGIKA BATAS TAMU ---
-        $maxTamu = $this->getMaxGuestLimit($kamar->tipeKamar->nama_tipe_kamar);
-        // -------------------------
+        // --- PERBAIKAN DI SINI (BEST PRACTICE) ---
+        // Tidak lagi menebak dari string nama, tapi ambil langsung dari database
+        $maxTamu = $kamar->tipeKamar->kapasitas;
+        // -----------------------------------------
 
         $fasilitasTersedia = Fasilitas::where('biaya_tambahan', '>', 0)->get();
 
-        // Kirim variabel $maxTamu ke view
         return view('user.booking', compact('kamar', 'fasilitasTersedia', 'maxTamu'));
     }
 

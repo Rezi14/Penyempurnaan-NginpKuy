@@ -26,8 +26,8 @@ class TipeKamarController extends Controller
         $request->validate([
             'nama_tipe_kamar' => 'required|string|max:255|unique:tipe_kamars',
             'harga_per_malam' => 'required|numeric|min:0',
+            'kapasitas' => 'required|integer|min:1', // <--- Validasi Baru
             'deskripsi' => 'nullable|string',
-            // Ubah validasi foto_url menjadi foto (file gambar)
             'foto' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
         ]);
 
@@ -56,6 +56,7 @@ class TipeKamarController extends Controller
         $request->validate([
             'nama_tipe_kamar' => 'required|string|max:255|unique:tipe_kamars,nama_tipe_kamar,' . $tipeKamar->id_tipe_kamar . ',id_tipe_kamar',
             'harga_per_malam' => 'required|numeric|min:0',
+            'kapasitas' => 'required|integer|min:1', // <--- Validasi Baru
             'deskripsi' => 'nullable|string',
             'foto' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
         ]);
@@ -88,7 +89,7 @@ class TipeKamarController extends Controller
 
         // Hapus file foto jika ada
         if ($tipeKamar->foto_url && file_exists(public_path($tipeKamar->foto_url))) {
-             File::delete(public_path($tipeKamar->foto_url));
+            File::delete(public_path($tipeKamar->foto_url));
         }
 
         $tipeKamar->delete();

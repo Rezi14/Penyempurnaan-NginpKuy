@@ -244,9 +244,9 @@ class PemesananController extends Controller
                 $pemesanan->status_pemesanan = 'paid';
 
                 // Set waktu checkout jika belum ada
-                if (is_null($pemesanan->check_out_date)) {
-                    $pemesanan->check_out_date = Carbon::carbon();
-                }
+                // if (is_null($pemesanan->check_out_date)) {
+                //     $pemesanan->check_out_date = Carbon::carbon();
+                // }
 
                 $pemesanan->save();
 
@@ -307,6 +307,10 @@ class PemesananController extends Controller
                 if (Carbon::now()->lessThan($checkOutDate)) {
                     return redirect()->back()->with('error', 'Gagal Hapus: Pemesanan yang sedang berjalan (Confirmed/Checked In) hanya dapat dihapus setelah melewati tanggal checkout.');
                 }
+            }
+            if ($pemesanan->status_pemesanan === 'paid') {
+                return redirect()->back()
+                    ->with('error', 'ILLEGAL ACTION: Transaksi yang sudah lunas (Paid) tidak boleh dihapus dari database karena merupakan bukti keuangan.');
             }
 
             // 2. KEMBALIKAN STATUS KAMAR JADI TERSEDIA
