@@ -168,7 +168,7 @@
                         <button type="submit" class="btn btn-primary">
                             <i class="fas fa-save me-1"></i> Simpan Pemesanan
                         </button>
-                        <a href="{{ route('admin.pemesanans.index') }}" class="btn btn-secondary">
+                        <a href="{{ route('admin.pemesanans.index') }}" class="btn btn-danger text-white">
                             <i class="fas fa-times me-1"></i> Batal
                         </a>
                     </div>

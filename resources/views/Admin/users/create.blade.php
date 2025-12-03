@@ -4,7 +4,7 @@
 <div class="container-fluid px-4">
     <h2 class="mt-4">Tambah Pengguna Baru</h2>
     <div class="d-flex justify-content-end mb-3">
-        <a href="{{ route('admin.users.index') }}" class="btn btn-secondary">
+        <a href="{{ route('admin.users.index') }}" class="btn btn-danger text-white">
             <i class="fas fa-arrow-left me-1"></i> Kembali
         </a>
     </div>
