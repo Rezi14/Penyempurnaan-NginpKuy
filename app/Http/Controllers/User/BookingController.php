@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\User;
 
+use Illuminate\Database\Query\Builder;
 use Illuminate\Routing\Controller;
 use Illuminate\Http\Request;
 use App\Models\Kamar;
@@ -10,6 +11,7 @@ use App\Models\Fasilitas;
 use Illuminate\Support\Facades\Auth;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
+
 
 class BookingController extends Controller
 {
@@ -51,9 +53,9 @@ class BookingController extends Controller
         }
 
         // Cek ketersediaan
-        if ($kamar->status_kamar == 0) {
-            return redirect()->route('dashboard')->with('error', 'Maaf, kamar ini baru saja dipesan orang lain.');
-        }
+        // if ($kamar->status_kamar == 0) {
+        //     return redirect()->route('dashboard')->with('error', 'Maaf, kamar ini baru saja dipesan orang lain.');
+        // }
 
         $kamar->load('tipeKamar');
 
@@ -69,51 +71,58 @@ class BookingController extends Controller
 
     public function store(Request $request)
     {
-        // 1. Cek pending booking
+        // 1. Cek pending booking user saat ini (biar ga numpuk)
         $pendingBooking = Pemesanan::where('user_id', Auth::id())
             ->where('status_pemesanan', 'pending')
             ->first();
 
         if ($pendingBooking) {
             return redirect()->route('booking.payment', $pendingBooking->id_pemesanan)
-                ->with('error', 'Transaksi sebelumnya belum selesai.');
-        }
-
-        // --- VALIDASI DINAMIS BERDASARKAN TIPE KAMAR ---
-        // Kita perlu mengambil data kamar dulu untuk tahu tipe-nya sebelum validasi
-        $kamarCheck = Kamar::with('tipeKamar')->find($request->kamar_id);
-
-        $maxTamu = 2; // Default aman
-        if ($kamarCheck) {
-            $maxTamu = $this->getMaxGuestLimit($kamarCheck->tipeKamar->nama_tipe_kamar);
+                ->with('error', 'Selesaikan pembayaran transaksi sebelumnya.');
         }
 
         $request->validate([
             'kamar_id' => 'required|exists:kamars,id_kamar',
             'check_in_date' => 'required|date|after_or_equal:today',
             'check_out_date' => 'required|date|after:check_in_date',
-            // Validasi max tamu sesuai tipe kamar
-            'jumlah_tamu' => 'required|integer|min:1|max:' . $maxTamu,
+            'jumlah_tamu' => 'required|integer|min:1',
             'fasilitas_ids' => 'nullable|array',
-            'fasilitas_ids.*' => 'exists:fasilitas,id_fasilitas',
-        ], [
-            'jumlah_tamu.max' => "Maksimal jumlah tamu untuk tipe kamar ini adalah $maxTamu orang.",
         ]);
-        // -----------------------------------------------
+
+        $checkIn = $request->check_in_date;
+        $checkOut = $request->check_out_date;
 
         try {
-            return DB::transaction(function () use ($request) {
+            return DB::transaction(function () use ($request, $checkIn, $checkOut) {
 
-                $kamar = Kamar::where('id_kamar', $request->kamar_id)->lockForUpdate()->first();
+                // --- LOGIKA BARU: Cek Overlap Tanggal ---
+                // Kita cari apakah ada pesanan lain di kamar ini yang tanggalnya bertabrakan
+                // Dan statusnya TIDAK 'cancelled' (artinya confirmed, pending, atau checked_in)
+                $isBooked = Pemesanan::where('kamar_id', $request->kamar_id)
+                    ->where('status_pemesanan', '!=', 'cancelled')
+                    ->where('status_pemesanan', '!=', 'checked_out') // Opsional: anggap checkout sudah kosong
+                    ->where(function ($query) use ($checkIn, $checkOut) {
+                        $query->where(function ($q) use ($checkIn, $checkOut) {
+                            // Kasus: Tanggal Check-in baru ada di antara periode booking orang lain
+                            $q->where('check_in_date', '<', $checkOut)
+                                ->where('check_out_date', '>', $checkIn);
+                        });
+                    })
+                    ->lockForUpdate() // Mencegah race condition saat query bersamaan
+                    ->exists();
 
-                if ($kamar->status_kamar == 0) {
-                    throw new \Exception('Maaf, kamar ini baru saja dibooking.');
+                if ($isBooked) {
+                    // Redirect kembali dengan error jika tanggal sudah terisi
+                    return back()->with('error', 'Maaf, kamar tidak tersedia pada tanggal yang dipilih.');
                 }
+                // ----------------------------------------
 
-                $kamar->load('tipeKamar');
-                $checkIn = Carbon::parse($request->check_in_date);
-                $checkOut = Carbon::parse($request->check_out_date);
-                $durasi = $checkIn->diffInDays($checkOut) ?: 1;
+                $kamar = Kamar::with('tipeKamar')->findOrFail($request->kamar_id);
+
+                // Hitung durasi & harga
+                $in = Carbon::parse($checkIn);
+                $out = Carbon::parse($checkOut);
+                $durasi = $in->diffInDays($out) ?: 1;
 
                 $totalHarga = $kamar->tipeKamar->harga_per_malam * $durasi;
 
@@ -122,11 +131,12 @@ class BookingController extends Controller
                     $totalHarga += $fasilitas->sum('biaya_tambahan');
                 }
 
+                // Buat Pemesanan
                 $pemesanan = Pemesanan::create([
                     'user_id' => Auth::id(),
                     'kamar_id' => $kamar->id_kamar,
-                    'check_in_date' => $request->check_in_date,
-                    'check_out_date' => $request->check_out_date,
+                    'check_in_date' => $checkIn,
+                    'check_out_date' => $checkOut,
                     'jumlah_tamu' => $request->jumlah_tamu,
                     'total_harga' => $totalHarga,
                     'status_pemesanan' => 'pending',
@@ -136,15 +146,15 @@ class BookingController extends Controller
                     $pemesanan->fasilitas()->attach($request->fasilitas_ids);
                 }
 
-                $kamar->status_kamar = 0;
-                $kamar->save();
+                // HAPUS bagian ini: $kamar->status_kamar = 0; $kamar->save();
+                // Kita tidak lagi mengunci kamar secara global (hard lock).
 
                 return redirect()->route('booking.payment', $pemesanan->id_pemesanan)
-                    ->with('success', 'Pesanan berhasil! Silakan selesaikan pembayaran.');
+                    ->with('success', 'Pesanan berhasil dibuat! Silakan bayar.');
             });
 
         } catch (\Exception $e) {
-            return redirect()->route('dashboard')->with('error', $e->getMessage());
+            return back()->with('error', 'Terjadi kesalahan: ' . $e->getMessage());
         }
     }
 
@@ -206,9 +216,9 @@ class BookingController extends Controller
 
         if ($pemesanan->user_id == Auth::id() && $pemesanan->status_pemesanan == 'pending') {
             $pemesanan->update(['status_pemesanan' => 'cancelled']);
-            $kamar = $pemesanan->kamar;
-            $kamar->status_kamar = 1;
-            $kamar->save();
+            // $kamar = $pemesanan->kamar;
+            // $kamar->status_kamar = 1;
+            // $kamar->save();
             return redirect()->route('dashboard')->with('success', 'Pesanan dibatalkan.');
         }
 

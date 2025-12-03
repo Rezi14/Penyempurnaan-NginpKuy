@@ -21,7 +21,6 @@ use App\Http\Controllers\Admin\DashboardAdminController;
 use App\Http\Controllers\Admin\KamarController;
 use App\Http\Controllers\Admin\TipeKamarController;
 use App\Http\Controllers\Admin\PemesananController;
-use App\Http\Controllers\Admin\PembayaranController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Admin\FasilitasController;
 
@@ -96,7 +95,9 @@ Route::middleware('auth')->group(function () {
     // === BOOKING / PEMESANAN (HANYA USER YG EMAIL VERIFIED) ===
     Route::middleware('verified')->controller(BookingController::class)->group(function () {
         Route::get('/pesan-kamar/{kamar}', 'showBookingForm')->name('booking.create');
-        Route::post('/pesan-kamar', 'store')->name('booking.store');
+        Route::post('/pesan-kamar', 'store')
+            ->middleware('throttle:5,1') // Maksimal 5 request per 1 menit
+            ->name('booking.store');
         Route::get('/pesanan/{id}', 'detail')->name('booking.detail');
 
         // Pembayaran
@@ -132,10 +133,10 @@ Route::middleware('auth')->group(function () {
                 ->prefix('pemesanans/{pemesanan}')
                 ->name('pemesanans.')
                 ->group(function () {
-                    Route::patch('/checkin', 'checkIn')->name('checkin');
-                    Route::patch('/checkout', 'checkout')->name('checkout');
-                    Route::patch('/confirm', 'confirm')->name('confirm');
-                });
+                Route::patch('/checkin', 'checkIn')->name('checkin');
+                Route::patch('/checkout', 'checkout')->name('checkout');
+                Route::patch('/confirm', 'confirm')->name('confirm');
+            });
 
             // Riwayat
             Route::controller(PemesananController::class)->group(function () {
