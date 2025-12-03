@@ -1,33 +1,23 @@
 @extends('layouts.user.app')
 
-{{-- 2. Set judul halaman ini --}}
 @section('title', 'Pemesanan')
 
 @push('styles')
     <link href="{{ asset('css/booking.css') }}" rel="stylesheet">
 @endpush
 
-{{-- 3. Masukkan konten unik halaman ini ke slot 'content' --}}
-
-
-
-
 @section('content')
 <div class="container checkout-container">
 
     <div class="row">
 
-        <!-- ===================== -->
-        <!--   KIRI : DETAIL KAMAR -->
-        <!-- ===================== -->
         <div class="col-lg-7">
 
             <div class="left-box">
-            <a href="{{ route('dashboard') }}" class="back-link">
-                <i class="fas fa-chevron-left me-2" style="margin-left: 20px; font-size:16px;"></i>
-                <span style="font-size:16px;">Kembali</span>
-            </a>
-            
+                <a href="{{ route('dashboard') }}" class="back-link">
+                    <i class="fas fa-chevron-left me-2" style="margin-left: 20px; font-size:16px;"></i>
+                    <span style="font-size:16px;">Kembali</span>
+                </a>
 
                 <img src="{{ asset($kamar->tipeKamar->foto_url) }}" class="room-photo" alt="Foto kamar">
 
@@ -35,6 +25,9 @@
 
                 <p><strong>Nomor Kamar:</strong> {{ $kamar->nomor_kamar }}</p>
                 <p><strong>Tipe Kamar:</strong> {{ $kamar->tipeKamar->nama_tipe_kamar }}</p>
+                {{-- Tampilkan Kapasitas di Detail --}}
+                <p><strong>Kapasitas Maksimal:</strong> {{ $maxTamu }} Orang</p>
+
                 <p><strong>Harga Per Malam:</strong> Rp {{ number_format($kamar->tipeKamar->harga_per_malam, 0, ',', '.') }}</p>
                 <p><strong>Deskripsi Tipe:</strong> {{ $kamar->tipeKamar->deskripsi }}</p>
                 <p><strong>Status:</strong> {{ $kamar->status_kamar ? 'Tersedia' : 'Tidak Tersedia' }}</p>
@@ -50,26 +43,43 @@
             </div>
         </div>
 
-        <!-- ==================== -->
-        <!--   KANAN : FORM ORDER -->
-        <!-- ==================== -->
         <div class="col-lg-5">
             <div class="order-card">
 
                 <h4 class="mb-3 fw-bold">Formulir Pemesanan</h4>
+
+                {{-- Tampilkan Error jika validasi gagal --}}
+                @if ($errors->any())
+                    <div class="alert alert-danger">
+                        <ul class="mb-0">
+                            @foreach ($errors->all() as $error)
+                                <li>{{ $error }}</li>
+                            @endforeach
+                        </ul>
+                    </div>
+                @endif
 
                 <form action="{{ route('booking.store') }}" method="POST">
                     @csrf
                     <input type="hidden" name="kamar_id" value="{{ $kamar->id_kamar }}">
 
                     <label class="form-label">Tanggal Check-in</label>
-                    <input type="date" class="form-control mb-3" name="check_in_date" required>
+                    <input type="date" class="form-control mb-3" name="check_in_date" value="{{ old('check_in_date') }}" required>
 
                     <label class="form-label">Tanggal Check-out</label>
-                    <input type="date" class="form-control mb-3" name="check_out_date" required>
+                    <input type="date" class="form-control mb-3" name="check_out_date" value="{{ old('check_out_date') }}" required>
 
-                    <label class="form-label">Jumlah Tamu</label>
-                    <input type="number" class="form-control mb-3" name="jumlah_tamu" value="1" min="1" required>
+                    {{-- MODIFIKASI: Input Jumlah Tamu dengan batasan max --}}
+                    <label class="form-label">
+                        Jumlah Tamu <small class="text-danger">(Maks: {{ $maxTamu }} orang)</small>
+                    </label>
+                    <input type="number"
+                           class="form-control mb-3"
+                           name="jumlah_tamu"
+                           value="{{ old('jumlah_tamu', 1) }}"
+                           min="1"
+                           max="{{ $maxTamu }}"
+                           required>
 
                     @if ($fasilitasTersedia->isNotEmpty())
                         <h6 class="fw-bold mt-4 mb-2">Fasilitas Tambahan (Opsional)</h6>
@@ -90,22 +100,18 @@
                     <hr class="my-4">
 
                     <div class="total-box d-flex justify-content-between align-items-center mb-3">
-                        <div class="total-box d-flex justify-content-between align-items-center mb-3">
-                            <h5 class="fw-bold mb-0">TOTAL</h5>
-                            <h4 class="fw-bold text-primary mb-0" id="totalHarga">Rp 0</h4>
-                        </div>
-
+                        <h5 class="fw-bold mb-0">TOTAL</h5>
+                        <h4 class="fw-bold text-primary mb-0" id="totalHarga">Rp 0</h4>
                     </div>
 
-                    <button class="order-btn">Konfirmasi Pemesanan</button>
-    
-                    {{-- Input tersembunyi untuk perhitungan total --}}
+                    <button type="submit" class="order-btn">Konfirmasi Pemesanan</button>
 
+                    {{-- Input tersembunyi untuk perhitungan total --}}
                     <input type="hidden" id="hargaPerMalam" value="{{ $kamar->tipeKamar->harga_per_malam }}">
 
                     @foreach ($fasilitasTersedia as $fs)
-                        <input type="hidden" class="hargaFasilitas" 
-                            data-id="{{ $fs->id_fasilitas }}" 
+                        <input type="hidden" class="hargaFasilitas"
+                            data-id="{{ $fs->id_fasilitas }}"
                             value="{{ $fs->biaya_tambahan }}">
                     @endforeach
 
@@ -118,19 +124,18 @@
 
 </div>
 
-
 <script>
     function hitungTotal() {
         const hargaPerMalam = parseInt(document.getElementById('hargaPerMalam').value);
-        const checkIn = document.querySelector('[name="check_in_date"]').value;
-        const checkOut = document.querySelector('[name="check_out_date"]').value;
+        const checkInVal = document.querySelector('[name="check_in_date"]').value;
+        const checkOutVal = document.querySelector('[name="check_out_date"]').value;
 
         let total = 0;
 
         // Hitung lama menginap (dalam hari)
-        if (checkIn && checkOut) {
-            const masuk = new Date(checkIn);
-            const keluar = new Date(checkOut);
+        if (checkInVal && checkOutVal) {
+            const masuk = new Date(checkInVal);
+            const keluar = new Date(checkOutVal);
 
             const selisih = (keluar - masuk) / (1000 * 60 * 60 * 24);
 

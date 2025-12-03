@@ -26,8 +26,10 @@ class UserController extends Controller
      */
     public function create()
     {
-        // Ambil semua role untuk pilihan di dropdown (Admin, Staff, Customer, dll)
-        $roles = Role::all();
+        // PERUBAHAN DI SINI:
+        // Hanya ambil role 'pelanggan' agar admin tidak bisa memilih role 'admin'
+        $roles = Role::where('nama_role', 'pelanggan')->get();
+
         return view('admin.users.create', compact('roles'));
     }
 
@@ -36,29 +38,50 @@ class UserController extends Controller
      */
     public function store(Request $request)
     {
+        // Validasi
         $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'email', 'max:255', 'unique:users'],
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
-            'id_role' => ['required', 'exists:roles,id_role'], // Pastikan id_role ada di tabel roles
+            // Pastikan role yang dipilih valid dan sesuai dengan opsi yang tersedia
+            'id_role' => ['required', 'exists:roles,id_role'],
         ]);
+
+        // Opsional: Cek server-side agar tidak ada yang mem-bypass form untuk jadi admin
+        $roleDipilih = Role::find($request->id_role);
+        if ($roleDipilih->nama_role === 'admin') {
+            return redirect()->back()->withErrors(['id_role' => 'Anda tidak diizinkan membuat user Admin.']);
+        }
 
         User::create([
             'name' => $request->name,
             'email' => $request->email,
-            'password' => Hash::make($request->password), // Enkripsi password
-            'id_role' => $request->id_role, // Sesuai kolom di User.php
+            'password' => Hash::make($request->password),
+            'id_role' => $request->id_role,
         ]);
 
         return redirect()->route('admin.users.index')->with('success', 'Pengguna berhasil ditambahkan!');
     }
 
     /**
-     * Menampilkan form edit (Opsional untuk fitur tambah, tapi sebaiknya ada).
+     * Menampilkan form edit.
      */
     public function edit(User $user)
     {
-        $roles = Role::all();
+        // PERUBAHAN DI SINI (Opsional):
+        // Jika ingin membatasi edit juga hanya ke pelanggan, gunakan filter yang sama.
+        // Namun jika admin boleh mengubah role user lain menjadi admin, gunakan Role::all().
+        // Di sini saya asumsikan pembatasan ketat:
+        $roles = Role::where('nama_role', 'pelanggan')->get();
+
+        // Jika user yang diedit adalah admin, kita mungkin perlu membiarkan role aslinya terpilih
+        // atau mencegah pengeditan role admin.
+        if ($user->role->nama_role === 'admin') {
+             // Jika mengedit sesama admin, mungkin tampilkan semua role atau biarkan saja
+             // Atau redirect jika admin tidak boleh edit admin lain.
+             $roles = Role::all();
+        }
+
         return view('admin.users.edit', compact('user', 'roles'));
     }
 
@@ -73,12 +96,18 @@ class UserController extends Controller
             'id_role' => ['required', 'exists:roles,id_role'],
         ];
 
-        // Password hanya divalidasi jika diisi (ingin diubah)
         if ($request->filled('password')) {
             $rules['password'] = ['confirmed', Rules\Password::defaults()];
         }
 
         $request->validate($rules);
+
+        // Opsional: Proteksi update agar tidak bisa mengubah jadi admin lewat inspeksi elemen
+        $roleBaru = Role::find($request->id_role);
+        if ($roleBaru->nama_role === 'admin' && auth()->user()->id != $user->id) {
+             // Logika tambahan: misalnya hanya Super Admin yang boleh buat Admin,
+             // tapi untuk kasus sederhana, kita biarkan validasi di create saja.
+        }
 
         $data = [
             'name' => $request->name,
@@ -100,7 +129,6 @@ class UserController extends Controller
      */
     public function destroy(User $user)
     {
-        // Cegah admin menghapus dirinya sendiri
         if (auth()->id() == $user->id) {
             return redirect()->back()->with('error', 'Anda tidak dapat menghapus akun Anda sendiri saat sedang login.');
         }

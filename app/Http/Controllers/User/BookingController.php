@@ -18,67 +18,98 @@ class BookingController extends Controller
         $this->middleware('auth');
     }
 
+    /**
+     * Helper untuk menentukan batas tamu berdasarkan nama tipe kamar
+     */
+    private function getMaxGuestLimit($namaTipeKamar)
+    {
+        // Normalisasi string (huruf kecil semua) agar pencocokan lebih aman
+        $type = strtolower($namaTipeKamar);
+
+        if (str_contains($type, 'family')) {
+            return 8;
+        } elseif (str_contains($type, 'suite')) {
+            return 6;
+        } elseif (str_contains($type, 'deluxe')) {
+            return 4;
+        } else {
+            // Default untuk Standard dan lain-lain
+            return 2;
+        }
+    }
+
     public function showBookingForm(Kamar $kamar)
     {
-        // 1. TAMBAHAN PENTING: Cek apakah user punya pesanan yang masih 'pending'
-        // Jika ada, paksa user untuk menyelesaikannya terlebih dahulu
+        // 1. Cek pending booking
         $pendingBooking = Pemesanan::where('user_id', Auth::id())
             ->where('status_pemesanan', 'pending')
             ->first();
 
         if ($pendingBooking) {
             return redirect()->route('booking.payment', $pendingBooking->id_pemesanan)
-                ->with('error', 'Anda masih memiliki pesanan yang belum diselesaikan. Silakan bayar atau batalkan pesanan tersebut untuk memesan kamar baru.');
+                ->with('error', 'Anda masih memiliki pesanan yang belum diselesaikan.');
         }
 
-        // Cek jika kamar sedang tidak tersedia (preventif jika ada yang akses URL langsung)
+        // Cek ketersediaan
         if ($kamar->status_kamar == 0) {
             return redirect()->route('dashboard')->with('error', 'Maaf, kamar ini baru saja dipesan orang lain.');
         }
 
         $kamar->load('tipeKamar');
-        // Hanya ambil fasilitas dengan biaya tambahan > 0
+
+        // --- LOGIKA BATAS TAMU ---
+        $maxTamu = $this->getMaxGuestLimit($kamar->tipeKamar->nama_tipe_kamar);
+        // -------------------------
+
         $fasilitasTersedia = Fasilitas::where('biaya_tambahan', '>', 0)->get();
 
-        return view('user.booking', compact('kamar', 'fasilitasTersedia'));
+        // Kirim variabel $maxTamu ke view
+        return view('user.booking', compact('kamar', 'fasilitasTersedia', 'maxTamu'));
     }
 
     public function store(Request $request)
     {
-        // 2. TAMBAHAN PENTING: Cek lagi di method store untuk keamanan ganda
+        // 1. Cek pending booking
         $pendingBooking = Pemesanan::where('user_id', Auth::id())
             ->where('status_pemesanan', 'pending')
             ->first();
 
         if ($pendingBooking) {
             return redirect()->route('booking.payment', $pendingBooking->id_pemesanan)
-                ->with('error', 'Transaksi sebelumnya belum selesai. Harap selesaikan pembayaran terlebih dahulu.');
+                ->with('error', 'Transaksi sebelumnya belum selesai.');
+        }
+
+        // --- VALIDASI DINAMIS BERDASARKAN TIPE KAMAR ---
+        // Kita perlu mengambil data kamar dulu untuk tahu tipe-nya sebelum validasi
+        $kamarCheck = Kamar::with('tipeKamar')->find($request->kamar_id);
+
+        $maxTamu = 2; // Default aman
+        if ($kamarCheck) {
+            $maxTamu = $this->getMaxGuestLimit($kamarCheck->tipeKamar->nama_tipe_kamar);
         }
 
         $request->validate([
             'kamar_id' => 'required|exists:kamars,id_kamar',
             'check_in_date' => 'required|date|after_or_equal:today',
             'check_out_date' => 'required|date|after:check_in_date',
-            'jumlah_tamu' => 'required|integer|min:1',
+            // Validasi max tamu sesuai tipe kamar
+            'jumlah_tamu' => 'required|integer|min:1|max:' . $maxTamu,
             'fasilitas_ids' => 'nullable|array',
             'fasilitas_ids.*' => 'exists:fasilitas,id_fasilitas',
+        ], [
+            'jumlah_tamu.max' => "Maksimal jumlah tamu untuk tipe kamar ini adalah $maxTamu orang.",
         ]);
+        // -----------------------------------------------
 
-        // Gunakan lockForUpdate untuk mencegah race condition (opsional tapi disarankan)
         try {
-            // Mulai Transaksi Database
             return DB::transaction(function () use ($request) {
 
-                // Lock kamar untuk mencegah race condition
                 $kamar = Kamar::where('id_kamar', $request->kamar_id)->lockForUpdate()->first();
 
-                // Cek ketersediaan di dalam lock
                 if ($kamar->status_kamar == 0) {
-                    // Throw exception agar di-catch catch block atau return redirect
                     throw new \Exception('Maaf, kamar ini baru saja dibooking.');
                 }
 
-                // ... (Logika hitung harga tetap sama) ...
                 $kamar->load('tipeKamar');
                 $checkIn = Carbon::parse($request->check_in_date);
                 $checkOut = Carbon::parse($request->check_out_date);
@@ -86,13 +117,11 @@ class BookingController extends Controller
 
                 $totalHarga = $kamar->tipeKamar->harga_per_malam * $durasi;
 
-                // Hitung fasilitas
                 if ($request->has('fasilitas_ids')) {
                     $fasilitas = Fasilitas::whereIn('id_fasilitas', $request->fasilitas_ids)->get();
                     $totalHarga += $fasilitas->sum('biaya_tambahan');
                 }
 
-                // Create Pemesanan
                 $pemesanan = Pemesanan::create([
                     'user_id' => Auth::id(),
                     'kamar_id' => $kamar->id_kamar,
@@ -103,12 +132,10 @@ class BookingController extends Controller
                     'status_pemesanan' => 'pending',
                 ]);
 
-                // Attach Fasilitas
                 if ($request->has('fasilitas_ids')) {
                     $pemesanan->fasilitas()->attach($request->fasilitas_ids);
                 }
 
-                // Update Status Kamar
                 $kamar->status_kamar = 0;
                 $kamar->save();
 
@@ -117,18 +144,14 @@ class BookingController extends Controller
             });
 
         } catch (\Exception $e) {
-            // Jika ada error, semua perubahan di atas dibatalkan (rollback)
             return redirect()->route('dashboard')->with('error', $e->getMessage());
         }
     }
 
-    // ... (method showPayment, checkPaymentStatus, dll biarkan seperti semula)
     public function showPayment($id)
     {
-        // Kode existing Anda ...
         $pemesanan = Pemesanan::with(['kamar.tipeKamar'])->findOrFail($id);
 
-        // ... dst
         if ($pemesanan->user_id !== Auth::id()) {
             abort(403);
         }
@@ -152,7 +175,6 @@ class BookingController extends Controller
         return view('user.payment', compact('pemesanan', 'batasWaktu'));
     }
 
-    // ... Method checkPaymentStatus, cancelBooking, simulatePaymentSuccess tetap sama ...
     public function checkPaymentStatus($id)
     {
         $pemesanan = Pemesanan::findOrFail($id);
@@ -195,11 +217,8 @@ class BookingController extends Controller
 
     public function detail($id)
     {
-        // Ambil data pesanan beserta relasi kamar, tipe kamar, dan fasilitas
-        $pemesanan = Pemesanan::with(['kamar.tipeKamar', 'user', 'fasilitas'])
-            ->findOrFail($id);
+        $pemesanan = Pemesanan::with(['kamar.tipeKamar', 'user', 'fasilitas'])->findOrFail($id);
 
-        // Keamanan: Pastikan user yang login adalah pemilik pesanan ini
         if (auth()->id() !== $pemesanan->user_id) {
             abort(403, 'ANDA TIDAK MEMILIKI AKSES KE HALAMAN INI.');
         }
