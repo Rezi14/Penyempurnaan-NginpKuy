@@ -6,6 +6,7 @@
     {{-- Judul akan diisi oleh halaman anak --}}
     <title>@yield('title') - Roomify</title>
 
+    <link rel="icon" href="{{ asset('img/Logo_B.png') }}">
     {{-- Memanggil file CSS yang baru saja kita buat --}}
     <link href="{{ asset('css/auth.css') }}" rel="stylesheet">
 </head>
