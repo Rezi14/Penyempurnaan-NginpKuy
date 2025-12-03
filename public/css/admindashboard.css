@@ -328,7 +328,7 @@ footer {
 
     .table tbody tr td {
         display: block;
-        text-align: right;
+        text-align: left;
         padding: 10px 15px;
         border-bottom: 1px solid #f0f0f0;
         position: relative;

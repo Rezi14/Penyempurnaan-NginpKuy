@@ -6,64 +6,67 @@
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
     {{-- Pastikan CSS utama sudah dipanggil di Layout utama, baris ini opsional di komponen --}}
     {{-- <link href="{{ asset('css/dashboardpengguna.css') }}" rel="stylesheet"> --}}
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+
 </head>
 <body>
-    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
-        <div class="container-fluid px-4">
-            {{-- Brand / Sapaan User --}}
-            <a class="navbar-brand fs-4 fw-bold" href="{{ route('dashboard') }}">
-                Halo, {{ Auth::check() ? Auth::user()->name : 'Roomifers' }}!
-            </a>
+<nav class="navbar navbar-expand-lg navbar-modern fixed-top">
+    <div class="container-fluid px-4">
 
-            {{-- Tombol Toggler (Hamburger) untuk Mobile --}}
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarContent"
-                aria-controls="navbarContent" aria-expanded="false" aria-label="Toggle navigation">
-                <span class="navbar-toggler-icon"></span>
-            </button>
+        {{-- Brand --}}
+        <a class="navbar-brand d-flex align-items-center" href="{{ route('dashboard') }}">
+            <img src="{{ asset('img/Logo Roomify_B.png') }}" 
+                alt="Logo"
+                style="height: 25px; width: auto; margin-right: 10px;">
+        </a>
 
-            {{-- Konten Navbar --}}
-            <div class="collapse navbar-collapse" id="navbarContent">
+        {{-- Toggler --}}
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarContent"
+            aria-controls="navbarContent" aria-expanded="false" aria-label="Toggle navigation">
+            <span class="navbar-toggler-icon"></span>
+        </button>
 
-                {{-- Daftar Menu (Kiri) --}}
-                <ul class="navbar-nav me-auto mb-2 mb-lg-0 ms-lg-4">
 
-                    {{-- 1. Menu Home --}}
+        <div class="collapse navbar-collapse" id="navbarContent">
+
+
+            {{-- Menu kiri --}}
+            <ul class="navbar-nav me-auto mb-2 mb-lg-0 ms-lg-4 order-lg-1">
+
+                <li class="nav-item">
+                    <a class="nav-link {{ request()->routeIs('dashboard') ? 'active fw-bold' : '' }}"
+                       href="{{ route('dashboard') }}">Home</a>
+                </li>
+
+                <li class="nav-item">
+                    <a class="nav-link {{ request()->routeIs('contact') ? 'active fw-bold' : '' }}"
+                       href="{{ route('contact') }}">Contact</a>
+                </li>
+
+                @auth
                     <li class="nav-item">
-                        <a class="nav-link {{ request()->routeIs('dashboard') ? 'active fw-bold' : '' }}"
-                           aria-current="page"
-                           href="{{ route('dashboard') }}">Home</a>
+                        <a class="nav-link {{ request()->routeIs('profile') ? 'active fw-bold' : '' }}"
+                           href="{{ route('profile') }}">Profil</a>
                     </li>
+                @endauth
+            </ul>
 
-                    {{-- 2. Menu Contact --}}
-                    <li class="nav-item">
-                        <a class="nav-link {{ request()->routeIs('contact') ? 'active fw-bold' : '' }}"
-                           href="{{ route('contact') }}">Contact</a>
-                    </li>
-
-                    {{-- 3. Menu Profil --}}
-                    {{-- Hanya tampilkan menu Profil jika user sudah Login (Opsional, tapi disarankan) --}}
-                    @auth
-                        <li class="nav-item">
-                            <a class="nav-link {{ request()->routeIs('profile') ? 'active fw-bold' : '' }}"
-                               href="{{ route('profile') }}">Profil</a>
-                        </li>
-                    @endauth
-                </ul>
-
-                {{-- Tombol Login/Logout (Kanan) --}}
-                <div class="d-flex mt-3 mt-lg-0">
-                    @if (Auth::check())
-                        <form action="{{ route('logout') }}" method="POST" class="d-flex">
-                            @csrf
-                            <button type="submit" class="btn btn-danger">Logout</button>
-                        </form>
-                    @else
-                        <a href="{{ route('login') }}" class="btn btn-light me-2">Login</a>
-                        <a href="{{ route('register') }}" class="btn btn-success">Register</a>
-                    @endif
-                </div>
+            {{-- Login/Logout --}}
+            <div class="d-flex mt-3 mt-lg-0 align-items-center order-lg-3">
+                @if (Auth::check())
+                    <form action="{{ route('logout') }}" method="POST">
+                        @csrf
+                        <button type="submit" class="btn btn-logout">Logout</button>
+                    </form>
+                @else
+                    <a href="{{ route('login') }}" class="btn btn-login me-3">Sign In</a>
+                    <a href="{{ route('register') }}" class="btn btn-register">Sign Up</a>
+                @endif
             </div>
+
         </div>
-    </nav>
+    </div>
+</nav>
+
 </body>
 </html>

@@ -27,7 +27,7 @@
     <x-user.navbar :user="Auth::user()" />
 
     {{-- Konten utama halaman --}}
-    <main class="container my-5 grow">
+    <main class="container mb-5 grow">
         @yield('content')
     </main>
 
