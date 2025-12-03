@@ -99,7 +99,7 @@ body {
 .remember-me label {
     cursor: pointer;
     color: #4b5563;
-    user-select: none;
+    /* user-select: none; */
 }
 
 .forgot-link {
