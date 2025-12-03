@@ -3,20 +3,23 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\User;
 use App\Models\Role;
+use App\Models\User;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules;
+use Illuminate\View\View;
 
 class UserController extends Controller
 {
     /**
      * Menampilkan daftar pengguna.
      */
-    public function index()
+    public function index(): View
     {
-        $users = User::with('role')->orderBy('id_role')->get();
+        $users = User::with('role')->orderBy('id_role', 'asc')->get();
 
         return view('admin.users.index', compact('users'));
     }
@@ -24,10 +27,9 @@ class UserController extends Controller
     /**
      * Menampilkan formulir pembuatan pengguna baru.
      */
-    public function create()
+    public function create(): View
     {
-        // PERUBAHAN DI SINI:
-        // Hanya ambil role 'pelanggan' agar admin tidak bisa memilih role 'admin'
+        // Hanya ambil role 'pelanggan' agar admin tidak bisa membuat akun 'admin' baru sembarangan
         $roles = Role::where('nama_role', 'pelanggan')->get();
 
         return view('admin.users.create', compact('roles'));
@@ -36,104 +38,116 @@ class UserController extends Controller
     /**
      * Menyimpan pengguna baru ke database.
      */
-    public function store(Request $request)
+    public function store(Request $request): RedirectResponse
     {
-        // Validasi
-        $request->validate([
-            'name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'string', 'email', 'max:255', 'unique:users'],
+        // 1. Validasi Input
+        $validatedData = $request->validate([
+            'name'     => ['required', 'string', 'max:255'],
+            'email'    => ['required', 'string', 'email', 'max:255', Rule::unique('users', 'email')],
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
-            // Pastikan role yang dipilih valid dan sesuai dengan opsi yang tersedia
-            'id_role' => ['required', 'exists:roles,id_role'],
+            'id_role'  => ['required', 'exists:roles,id_role'],
         ]);
 
-        // Opsional: Cek server-side agar tidak ada yang mem-bypass form untuk jadi admin
+        // 2. Proteksi Tambahan: Cek agar tidak ada yang mem-bypass form untuk jadi admin
         $roleDipilih = Role::find($request->id_role);
-        if ($roleDipilih->nama_role === 'admin') {
-            return redirect()->back()->withErrors(['id_role' => 'Anda tidak diizinkan membuat user Admin.']);
+        if ($roleDipilih && $roleDipilih->nama_role === 'admin') {
+            return redirect()->back()
+                ->withErrors(['id_role' => 'Anda tidak diizinkan membuat user dengan role Admin.'])
+                ->withInput();
         }
 
-        User::create([
-            'name' => $request->name,
-            'email' => $request->email,
-            'password' => Hash::make($request->password),
-            'id_role' => $request->id_role,
-        ]);
+        // 3. Hash Password & Simpan
+        $validatedData['password'] = Hash::make($validatedData['password']);
 
-        return redirect()->route('admin.users.index')->with('success', 'Pengguna berhasil ditambahkan!');
+        User::create($validatedData);
+
+        return redirect()->route('admin.users.index')
+            ->with('success', 'Pengguna berhasil ditambahkan!');
     }
 
     /**
-     * Menampilkan form edit.
+     * Menampilkan form edit pengguna.
      */
-    public function edit(User $user)
+    public function edit(User $user): View
     {
-        // PERUBAHAN DI SINI (Opsional):
-        // Jika ingin membatasi edit juga hanya ke pelanggan, gunakan filter yang sama.
-        // Namun jika admin boleh mengubah role user lain menjadi admin, gunakan Role::all().
-        // Di sini saya asumsikan pembatasan ketat:
+        // Default: hanya boleh memilih role pelanggan
         $roles = Role::where('nama_role', 'pelanggan')->get();
 
-        // Jika user yang diedit adalah admin, kita mungkin perlu membiarkan role aslinya terpilih
-        // atau mencegah pengeditan role admin.
-        if ($user->role->nama_role === 'admin') {
-             // Jika mengedit sesama admin, mungkin tampilkan semua role atau biarkan saja
-             // Atau redirect jika admin tidak boleh edit admin lain.
-             $roles = Role::all();
+        // Pengecualian: Jika user yang diedit adalah admin, tampilkan semua role
+        // atau biarkan role admin tetap ada dalam pilihan (tergantung kebijakan)
+        if ($user->role && $user->role->nama_role === 'admin') {
+            $roles = Role::all();
         }
 
         return view('admin.users.edit', compact('user', 'roles'));
     }
 
     /**
-     * Update data pengguna.
+     * Memperbarui data pengguna.
      */
-    public function update(Request $request, User $user)
+    public function update(Request $request, User $user): RedirectResponse
     {
+        // 1. Validasi Input
         $rules = [
-            'name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'string', 'email', 'max:255', 'unique:users,email,' . $user->id],
+            'name'    => ['required', 'string', 'max:255'],
+            'email'   => [
+                'required',
+                'string',
+                'email',
+                'max:255',
+                Rule::unique('users', 'email')->ignore($user->id)
+            ],
             'id_role' => ['required', 'exists:roles,id_role'],
         ];
 
+        // Validasi password hanya jika diisi
         if ($request->filled('password')) {
             $rules['password'] = ['confirmed', Rules\Password::defaults()];
         }
 
-        $request->validate($rules);
+        $validatedData = $request->validate($rules);
 
-        // Opsional: Proteksi update agar tidak bisa mengubah jadi admin lewat inspeksi elemen
+        // 2. Proteksi Update Role Admin
+        // Mencegah user biasa diubah jadi admin lewat inspeksi elemen, kecuali oleh yang berwenang
         $roleBaru = Role::find($request->id_role);
-        if ($roleBaru->nama_role === 'admin' && auth()->user()->id != $user->id) {
-             // Logika tambahan: misalnya hanya Super Admin yang boleh buat Admin,
-             // tapi untuk kasus sederhana, kita biarkan validasi di create saja.
+        if ($roleBaru && $roleBaru->nama_role === 'admin' && auth()->id() !== $user->id) {
+            // Logika ini bisa disesuaikan, misal hanya Super Admin yang boleh
+            // Saat ini kita biarkan lolos jika validasi di atas oke,
+            // atau tambahkan return back() error jika ingin membatasi ketat.
         }
 
-        $data = [
-            'name' => $request->name,
-            'email' => $request->email,
-            'id_role' => $request->id_role,
+        // 3. Update Data
+        $dataToUpdate = [
+            'name'    => $validatedData['name'],
+            'email'   => $validatedData['email'],
+            'id_role' => $validatedData['id_role'],
         ];
 
+        // Hanya update password jika input password diisi
         if ($request->filled('password')) {
-            $data['password'] = Hash::make($request->password);
+            $dataToUpdate['password'] = Hash::make($request->password);
         }
 
-        $user->update($data);
+        $user->update($dataToUpdate);
 
-        return redirect()->route('admin.users.index')->with('success', 'Data pengguna berhasil diperbarui!');
+        return redirect()->route('admin.users.index')
+            ->with('success', 'Data pengguna berhasil diperbarui!');
     }
 
     /**
-     * Hapus pengguna.
+     * Menghapus pengguna.
      */
-    public function destroy(User $user)
+    public function destroy(User $user): RedirectResponse
     {
-        if (auth()->id() == $user->id) {
-            return redirect()->back()->with('error', 'Anda tidak dapat menghapus akun Anda sendiri saat sedang login.');
+        // Mencegah admin menghapus akunnya sendiri saat sedang login
+        if (auth()->id() === $user->id) {
+            return redirect()->back()
+                ->with('error', 'Anda tidak dapat menghapus akun Anda sendiri saat sedang login.');
         }
 
         $user->delete();
-        return redirect()->route('admin.users.index')->with('success', 'Pengguna berhasil dihapus!');
+
+        return redirect()->route('admin.users.index')
+            ->with('success', 'Pengguna berhasil dihapus!');
     }
 }

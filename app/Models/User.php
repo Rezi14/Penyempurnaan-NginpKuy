@@ -4,12 +4,15 @@ namespace App\Models;
 
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
 class User extends Authenticatable implements MustVerifyEmail
 {
-    use HasFactory, Notifiable;
+    use HasFactory;
+    use Notifiable;
 
     protected $table = 'users';
 
@@ -25,27 +28,39 @@ class User extends Authenticatable implements MustVerifyEmail
         'remember_token',
     ];
 
+    /**
+     * Get the attributes that should be cast.
+     *
+     * @return array<string, string>
+     */
     protected function casts(): array
     {
         return [
             'email_verified_at' => 'datetime',
-            'password' => 'hashed',
+            'password'          => 'hashed',
         ];
     }
 
-    public function role()
+    /**
+     * Relasi ke Role (User memiliki satu role).
+     */
+    public function role(): BelongsTo
     {
         return $this->belongsTo(Role::class, 'id_role', 'id_role');
     }
 
-    public function hasRole($roleName)
+    /**
+     * Helper untuk mengecek nama role user.
+     */
+    public function hasRole(string $roleName): bool
     {
         return $this->role && $this->role->nama_role == $roleName;
     }
 
-    // --- TAMBAHAN BARU ---
-    // Relasi ke tabel pemesanans
-    public function pemesanans()
+    /**
+     * Relasi ke Pemesanan (User memiliki banyak riwayat pemesanan).
+     */
+    public function pemesanans(): HasMany
     {
         // Parameter ke-2 'user_id' harus sesuai dengan kolom foreign key di tabel pemesanans
         return $this->hasMany(Pemesanan::class, 'user_id', 'id');

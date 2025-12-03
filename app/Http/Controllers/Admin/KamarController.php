@@ -3,19 +3,24 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\Kamar; // Import model Kamar
-use App\Models\TipeKamar; // Import model TipeKamar (jika diperlukan untuk dropdown saat tambah/edit)
+use App\Models\Kamar;
+use App\Models\TipeKamar;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
+use Illuminate\View\View;
 
 class KamarController extends Controller
 {
     /**
      * Menampilkan daftar semua kamar.
      */
-    public function index()
+    public function index(): View
     {
         // Ambil semua kamar dengan memuat relasi tipeKamar
-        $kamars = Kamar::with('tipeKamar')->orderBy('nomor_kamar')->get();
+        $kamars = Kamar::with('tipeKamar')
+            ->orderBy('nomor_kamar', 'asc')
+            ->get();
 
         return view('admin.kamars.index', compact('kamars'));
     }
@@ -23,60 +28,69 @@ class KamarController extends Controller
     /**
      * Menampilkan formulir untuk membuat kamar baru.
      */
-    public function create()
+    public function create(): View
     {
-        $tipeKamars = TipeKamar::orderBy('id_tipe_kamar', 'asc')->get(); // Ambil semua tipe kamar untuk dropdown
+        $tipeKamars = TipeKamar::orderBy('id_tipe_kamar', 'asc')->get();
+
         return view('admin.kamars.create', compact('tipeKamars'));
     }
 
     /**
      * Menyimpan kamar baru ke database.
      */
-    public function store(Request $request)
+    public function store(Request $request): RedirectResponse
     {
-        $request->validate([
-            'nomor_kamar' => 'required|string|max:255|unique:kamars',
+        $validatedData = $request->validate([
+            'nomor_kamar'   => ['required', 'string', 'max:255', Rule::unique('kamars', 'nomor_kamar')],
             'id_tipe_kamar' => ['required', 'exists:tipe_kamars,id_tipe_kamar'],
-            'status_kamar' => 'required|boolean', // 0 untuk Tidak Tersedia, 1 untuk Tersedia
+            'status_kamar'  => ['required', 'boolean'], // 0: Tidak Tersedia, 1: Tersedia
         ]);
 
-        Kamar::create($request->all());
+        Kamar::create($validatedData);
 
-        return redirect()->route('admin.kamars.index')->with('success', 'Kamar berhasil ditambahkan!');
+        return redirect()->route('admin.kamars.index')
+            ->with('success', 'Kamar berhasil ditambahkan!');
     }
 
     /**
      * Menampilkan formulir untuk mengedit kamar.
      */
-    public function edit(Kamar $kamar)
+    public function edit(Kamar $kamar): View
     {
         $tipeKamars = TipeKamar::orderBy('id_tipe_kamar', 'asc')->get();
+
         return view('admin.kamars.edit', compact('kamar', 'tipeKamars'));
     }
 
     /**
      * Memperbarui kamar di database.
      */
-    public function update(Request $request, Kamar $kamar)
+    public function update(Request $request, Kamar $kamar): RedirectResponse
     {
-        $request->validate([
-            'nomor_kamar' => ['required', 'string', 'max:50'],
+        $validatedData = $request->validate([
+            'nomor_kamar' => [
+                'required',
+                'string',
+                'max:255',
+                Rule::unique('kamars', 'nomor_kamar')->ignore($kamar->id_kamar, 'id_kamar')
+            ],
             'id_tipe_kamar' => ['required', 'exists:tipe_kamars,id_tipe_kamar'],
-            'status_kamar' => ['nullable', 'boolean'],
+            'status_kamar'  => ['nullable', 'boolean'],
         ]);
 
-        $kamar->update($request->all());
+        $kamar->update($validatedData);
 
-        return redirect()->route('admin.kamars.index')->with('success', 'Kamar berhasil diperbarui!');
+        return redirect()->route('admin.kamars.index')
+            ->with('success', 'Kamar berhasil diperbarui!');
     }
 
     /**
      * Menghapus kamar dari database.
      */
-    public function destroy(Kamar $kamar)
+    public function destroy(Kamar $kamar): RedirectResponse
     {
         // Cek apakah ada pesanan aktif (pending/confirmed/checkin) untuk kamar ini
-        $pesananAktif = $kamar->pemesanans() // Asumsi kamu sudah buat relasi hasMany di model Kamar
+        $pesananAktif = $kamar->pemesanans()
             ->whereIn('status_pemesanan', ['pending', 'confirmed', 'checkin'])
             ->exists();
 
@@ -85,6 +99,8 @@ class KamarController extends Controller
         }
 
         $kamar->delete();
-        return redirect()->route('admin.kamars.index')->with('success', 'Kamar berhasil dihapus!');
+
+        return redirect()->route('admin.kamars.index')
+            ->with('success', 'Kamar berhasil dihapus!');
     }
 }

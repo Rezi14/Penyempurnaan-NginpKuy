@@ -4,6 +4,8 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class TipeKamar extends Model
 {
@@ -15,24 +17,32 @@ class TipeKamar extends Model
     protected $fillable = [
         'nama_tipe_kamar',
         'harga_per_malam',
-        'deskripsi', // Menambahkan 'deskripsi' di sini
+        'kapasitas', // Penting: Ditambahkan agar data kapasitas dari controller tersimpan
+        'deskripsi',
         'foto_url',
     ];
 
     protected $casts = [
         'harga_per_malam' => 'float',
+        'kapasitas'       => 'integer',
     ];
 
-    public function kamars()
+    /**
+     * Relasi ke Kamar (One-to-Many).
+     * Satu tipe kamar bisa memiliki banyak kamar fisik.
+     */
+    public function kamars(): HasMany
     {
         return $this->hasMany(Kamar::class, 'id_tipe_kamar', 'id_tipe_kamar');
     }
 
-    // NEW: Relasi baru untuk fasilitas default yang termasuk dalam tipe kamar
-    public function fasilitas()
+    /**
+     * Relasi ke Fasilitas (Many-to-Many).
+     * Fasilitas default yang termasuk dalam tipe kamar ini (misal: AC, WiFi).
+     */
+    public function fasilitas(): BelongsToMany
     {
-    // Relasi Many-to-Many ke fasilitas (Fasilitas Dasar)
         return $this->belongsToMany(Fasilitas::class, 'tipe_kamar_fasilitas', 'id_tipe_kamar', 'id_fasilitas')
-                    ->withTimestamps();
+            ->withTimestamps();
     }
 }

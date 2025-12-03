@@ -4,6 +4,8 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Kamar extends Model
 {
@@ -16,18 +18,24 @@ class Kamar extends Model
         'nomor_kamar',
         'id_tipe_kamar',
         'status_kamar',
-        // 'deskripsi' dihapus dari sini
     ];
 
     protected $casts = [
         'status_kamar' => 'boolean',
     ];
 
-    public function tipeKamar()
+    /**
+     * Relasi ke Tipe Kamar.
+     */
+    public function tipeKamar(): BelongsTo
     {
         return $this->belongsTo(TipeKamar::class, 'id_tipe_kamar', 'id_tipe_kamar');
     }
-    public function pemesanans()
+
+    /**
+     * Relasi ke Pemesanan.
+     */
+    public function pemesanans(): HasMany
     {
         return $this->hasMany(Pemesanan::class, 'kamar_id', 'id_kamar');
     }

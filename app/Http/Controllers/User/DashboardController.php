@@ -3,21 +3,21 @@
 namespace App\Http\Controllers\User;
 
 use App\Http\Controllers\Controller;
+use App\Models\Fasilitas;
+use App\Models\Kamar;
+use App\Models\Pemesanan;
+use App\Models\TipeKamar;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Database\Eloquent\Builder;
-
-// Models
-use App\Models\Kamar;
-use App\Models\TipeKamar;
-use App\Models\Fasilitas;
+use Illuminate\View\View;
 
 class DashboardController extends Controller
 {
     /**
      * Menampilkan dashboard user dengan filter pencarian kamar.
      */
-    public function index(Request $request)
+    public function index(Request $request): View
     {
         // 1. Ambil data untuk dropdown filter
         $tipeKamarList = TipeKamar::all();
@@ -27,20 +27,22 @@ class DashboardController extends Controller
         $kamarsTersedia = Kamar::with(['tipeKamar.fasilitas'])
             // Pastikan hanya menampilkan kamar yang statusnya 'Aktif' (bukan sedang maintenance)
             ->where('status_kamar', 1)
-            ->when($request->filled(['check_in', 'check_out']), function ($query) use ($request) {
-                $checkIn = $request->check_in;
+
+            // Filter: Tanggal Check-in & Check-out (Cek Ketersediaan)
+            ->when($request->filled(['check_in', 'check_out']), function (Builder $query) use ($request) {
+                $checkIn  = $request->check_in;
                 $checkOut = $request->check_out;
 
-                $query->whereDoesntHave('pemesanans', function ($q) use ($checkIn, $checkOut) {
+                // Cari kamar yang TIDAK memiliki pesanan yang bertabrakan di tanggal tersebut
+                $query->whereDoesntHave('pemesanans', function (Builder $q) use ($checkIn, $checkOut) {
                     $q->where('status_pemesanan', '!=', 'cancelled')
-                        ->where(function ($sub) use ($checkIn, $checkOut) {
-                            $sub->whereBetween('check_in_date', [$checkIn, $checkOut])
-                                ->orWhereBetween('check_out_date', [$checkIn, $checkOut])
-                                ->orWhere(function ($overlap) use ($checkIn, $checkOut) {
-                                    $overlap->where('check_in_date', '<=', $checkIn)
-                                        ->where('check_out_date', '>=', $checkOut);
-                                });
-                        });
+                      ->where('status_pemesanan', '!=', 'checked_out') // Asumsi checked_out sudah kosong
+                      ->where(function (Builder $sub) use ($checkIn, $checkOut) {
+                          // Logika Overlap: (StartA < EndB) && (EndA > StartB)
+                          // Artinya: Waktu booking user (A) bertabrakan dengan booking database (B)
+                          $sub->where('check_in_date', '<', $checkOut)
+                              ->where('check_out_date', '>', $checkIn);
+                      });
                 });
             })
 
@@ -74,21 +76,18 @@ class DashboardController extends Controller
             ->get();
 
         // 3. Statistik Dashboard
-        $totalKamar = Kamar::count();
-        $tersedia = Kamar::where('status_kamar', 1)->count();
-        $terisi = Kamar::where('status_kamar', 0)->count();
-        $totalTipe = TipeKamar::count();
+        $stats = [
+            'totalKamar' => Kamar::count(),
+            'tersedia'   => Kamar::where('status_kamar', 1)->count(),
+            'terisi'     => Kamar::where('status_kamar', 0)->count(),
+            'totalTipe'  => TipeKamar::count(),
+        ];
 
-        return view('user.dashboard', [
+        return view('user.dashboard', array_merge($stats, [
             'kamarsTersedia' => $kamarsTersedia,
-            'totalKamar' => $totalKamar,
-            'tersedia' => $tersedia,
-            'terisi' => $terisi,
-            'totalTipe' => $totalTipe,
-            'user' => Auth::user(),
-            // Data filter
-            'tipeKamarList' => $tipeKamarList,
-            'fasilitasList' => $fasilitasList,
-        ]);
+            'user'           => Auth::user(),
+            'tipeKamarList'  => $tipeKamarList,
+            'fasilitasList'  => $fasilitasList,
+        ]));
     }
 }

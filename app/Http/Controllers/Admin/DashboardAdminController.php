@@ -3,25 +3,34 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
 use App\Models\Kamar;
 use App\Models\Pemesanan;
 use App\Models\User;
 
 class DashboardAdminController extends Controller
 {
+    /**
+     * Menampilkan halaman dashboard admin beserta ringkasan data.
+     */
     public function index()
     {
-        $totalKamar = Kamar::count();
-        $totalPemesanan = Pemesanan::count(); // Total semua pemesanan
-        $totalPengguna = User::count();
+        // 1. Mengambil Data Statistik
+        $totalKamar      = Kamar::count();
+        $totalPemesanan  = Pemesanan::count();
+        $totalPengguna   = User::where('id_role', '2')->count();
 
-        // Ambil pemesanan yang statusnya 'checked_in' dan belum check-out
-        $pelangganCheckin = Pemesanan::with(['user', 'kamar.tipeKamar', 'fasilitas']) // Muat relasi fasilitas juga
+        // 2. Mengambil Data Pelanggan yang Sedang Check-in
+        $pelangganCheckin = Pemesanan::with(['user', 'kamar.tipeKamar', 'fasilitas'])
             ->where('status_pemesanan', 'checked_in')
-            ->orderBy('id_pemesanan','asc')
+            ->orderBy('id_pemesanan', 'desc')
             ->get();
 
-        return view('Admin.dashboard', compact('totalKamar', 'totalPemesanan', 'totalPengguna', 'pelangganCheckin'));
+        // 3. Return ke View
+        return view('Admin.dashboard', compact(
+            'totalKamar',
+            'totalPemesanan',
+            'totalPengguna',
+            'pelangganCheckin'
+        ));
     }
 }

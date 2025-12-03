@@ -3,56 +3,63 @@
 namespace App\Http\Controllers\User;
 
 use App\Http\Controllers\Controller;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
+use Illuminate\View\View;
 
 class ProfileController extends Controller
 {
-    // Menampilkan halaman profil
-    public function index()
+    /**
+     * Menampilkan halaman profil.
+     */
+    public function index(Request $request): View
     {
-        $user = Auth::user();
+        $user = $request->user();
+
         return view('user.pages.profile', compact('user'));
     }
 
-    // Mengupdate Nama dan Email
-    public function update(Request $request)
+    /**
+     * Mengupdate Nama dan Email.
+     */
+    public function update(Request $request): RedirectResponse
     {
-        $user = Auth::user();
+        $user = $request->user();
 
-        $request->validate([
-            'name'  => 'required|string|max:255',
+        $validatedData = $request->validate([
+            'name'  => ['required', 'string', 'max:255'],
             'email' => [
                 'required',
                 'email',
                 'max:255',
-                Rule::unique('users')->ignore($user->id), // Email boleh sama jika milik sendiri
+                Rule::unique('users', 'email')->ignore($user->id),
             ],
         ]);
 
-        $user->update([
-            'name'  => $request->name,
-            'email' => $request->email,
-        ]);
+        $user->update($validatedData);
 
         return back()->with('success', 'Profil berhasil diperbarui!');
     }
 
-    // Mengganti Password
-    public function updatePassword(Request $request)
+    /**
+     * Mengganti Password.
+     */
+    public function updatePassword(Request $request): RedirectResponse
     {
         $request->validate([
-            'current_password' => 'required',
-            'password'         => 'required|min:8|confirmed', // 'confirmed' cocokkan dengan field password_confirmation
+            'current_password' => ['required', 'string'],
+            'password'         => ['required', 'string', 'min:8', 'confirmed'],
         ]);
 
-        $user = Auth::user();
+        $user = $request->user();
 
         // Cek apakah password lama benar
         if (!Hash::check($request->current_password, $user->password)) {
-            return back()->withErrors(['current_password' => 'Password saat ini salah!']);
+            return back()
+                ->withErrors(['current_password' => 'Password saat ini salah!'])
+                ->withInput(); // Kembalikan input agar user tidak perlu mengetik ulang (kecuali password)
         }
 
         // Update password baru

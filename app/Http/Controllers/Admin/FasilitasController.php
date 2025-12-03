@@ -4,100 +4,110 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Fasilitas;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use Illuminate\View\View;
 
 class FasilitasController extends Controller
 {
     /**
      * Menampilkan daftar semua fasilitas.
      */
-    public function index()
+    public function index(): View
     {
-        $fasilitas = Fasilitas::orderBy('id_fasilitas')->get();
+        $fasilitas = Fasilitas::orderBy('id_fasilitas', 'asc')->get();
+
         return view('admin.fasilitas.index', compact('fasilitas'));
     }
 
     /**
-     * Menampilkan formulir untuk membuat fasilitas baru.
+     * Menampilkan form tambah fasilitas.
      */
-    public function create()
+    public function create(): View
     {
         return view('admin.fasilitas.create');
     }
 
     /**
-     * Menyimpan fasilitas baru ke database.
+     * Menyimpan fasilitas baru.
      */
-    public function store(Request $request)
+    public function store(Request $request): RedirectResponse
     {
-        $request->validate([
+        $validatedData = $request->validate([
             'nama_fasilitas' => ['required', 'string', 'max:255', Rule::unique('fasilitas', 'nama_fasilitas')],
-            'deskripsi' => 'nullable|string',
-            'biaya_tambahan' => 'nullable|numeric|min:0',
-            'icon' => 'nullable|string|max:255',
+            'deskripsi'      => ['nullable', 'string'],
+            'biaya_tambahan' => ['nullable', 'numeric', 'min:0'],
+            'icon'           => ['nullable', 'string', 'max:255'],
         ]);
 
         try {
-            Fasilitas::create($request->all());
-            return redirect()->route('admin.fasilitas.index')->with('success', 'Fasilitas berhasil ditambahkan!');
+            Fasilitas::create($validatedData);
+
+            return redirect()->route('admin.fasilitas.index')
+                ->with('success', 'Fasilitas berhasil ditambahkan!');
         } catch (\Exception $e) {
-            return redirect()->back()->with('error', 'Terjadi kesalahan saat menambahkan fasilitas: ' . $e->getMessage())->withInput();
+            return back()->with('error', 'Gagal menambahkan fasilitas: ' . $e->getMessage())
+                ->withInput();
         }
     }
 
     /**
-     * Menampilkan detail fasilitas tertentu (opsional).
+     * Menampilkan detail fasilitas tertentu.
      */
-    public function show(Fasilitas $fasilitas)
+    public function show(Fasilitas $fasilitas): View
     {
         return view('admin.fasilitas.show', compact('fasilitas'));
     }
 
     /**
-     * Menampilkan formulir untuk mengedit fasilitas yang sudah ada.
+     * Menampilkan form edit fasilitas.
      */
-    public function edit($id) // Ubah parameter menjadi $id
+    public function edit(Fasilitas $fasilitas): View
     {
-        $fasilitas = Fasilitas::findOrFail($id);
         return view('admin.fasilitas.edit', compact('fasilitas'));
     }
 
-
     /**
-     * Memperbarui fasilitas di database.
+     * Memperbarui data fasilitas.
      */
-    public function update(Request $request, $id) // Ubah parameter menjadi $id
+    public function update(Request $request, Fasilitas $fasilitas): RedirectResponse
     {
-        $fasilitas = Fasilitas::findOrFail($id);
-
-        $request->validate([
-            'nama_fasilitas' => ['required', 'string', 'max:255', Rule::unique('fasilitas')->ignore($fasilitas->id_fasilitas, 'id_fasilitas')],
-            'deskripsi' => 'nullable|string',
-            'biaya_tambahan' => 'nullable|numeric|min:0',
-            'icon' => 'nullable|string|max:255',
+        $validatedData = $request->validate([
+            'nama_fasilitas' => [
+                'required',
+                'string',
+                'max:255',
+                Rule::unique('fasilitas', 'nama_fasilitas')->ignore($fasilitas->id_fasilitas, 'id_fasilitas'),
+            ],
+            'deskripsi'      => ['nullable', 'string'],
+            'biaya_tambahan' => ['nullable', 'numeric', 'min:0'],
+            'icon'           => ['nullable', 'string', 'max:255'],
         ]);
 
         try {
-            $fasilitas->update($request->all());
-            return redirect()->route('admin.fasilitas.index')->with('success', 'Fasilitas berhasil diperbarui!');
+            $fasilitas->update($validatedData);
+
+            return redirect()->route('admin.fasilitas.index')
+                ->with('success', 'Fasilitas berhasil diperbarui!');
         } catch (\Exception $e) {
-            return redirect()->back()->with('error', 'Terjadi kesalahan saat memperbarui fasilitas: ' . $e->getMessage())->withInput();
+            return back()->with('error', 'Gagal memperbarui fasilitas: ' . $e->getMessage())
+                ->withInput();
         }
     }
 
-/**
- * Menghapus fasilitas dari database.
- */
-    public function destroy($id) // Ubah parameter menjadi $id
+    /**
+     * Menghapus fasilitas dari database.
+     */
+    public function destroy(Fasilitas $fasilitas): RedirectResponse
     {
-        $fasilitas = Fasilitas::findOrFail($id);
-
         try {
             $fasilitas->delete();
-            return redirect()->route('admin.fasilitas.index')->with('success', 'Fasilitas berhasil dihapus!');
+
+            return redirect()->route('admin.fasilitas.index')
+                ->with('success', 'Fasilitas berhasil dihapus!');
         } catch (\Exception $e) {
-            return redirect()->back()->with('error', 'Terjadi kesalahan saat menghapus fasilitas: ' . $e->getMessage());
+            return back()->with('error', 'Gagal menghapus fasilitas: ' . $e->getMessage());
         }
     }
 }

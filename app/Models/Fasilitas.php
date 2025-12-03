@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class Fasilitas extends Model
 {
@@ -19,17 +20,29 @@ class Fasilitas extends Model
         'biaya_tambahan',
     ];
 
-    // Relasi ke Tipe Kamar (Fasilitas Dasar)
-    public function tipeKamars()
+    /**
+     * Relasi ke Tipe Kamar (Fasilitas Dasar).
+     */
+    public function tipeKamars(): BelongsToMany
     {
-        return $this->belongsToMany(TipeKamar::class, 'tipe_kamar_fasilitas', 'id_fasilitas', 'id_tipe_kamar');
+        return $this->belongsToMany(
+            TipeKamar::class,
+            'tipe_kamar_fasilitas',
+            'id_fasilitas',
+            'id_tipe_kamar'
+        );
     }
 
-    // Relasi ke Pemesanan (Fasilitas Tambahan)
-    public function pemesanans()
+    /**
+     * Relasi ke Pemesanan (Fasilitas Tambahan).
+     */
+    public function pemesanans(): BelongsToMany
     {
-        return $this->belongsToMany(Pemesanan::class, 'pemesanan_fasilitas', 'id_fasilitas', 'id_pemesanan')
-                    ->withPivot('jumlah', 'total_harga_fasilitas')
-                    ->withTimestamps();
+        return $this->belongsToMany(
+            Pemesanan::class,
+            'pemesanan_fasilitas',
+            'id_fasilitas',
+            'id_pemesanan'
+        )->withTimestamps(); // Menambahkan timestamp pivot jika ada (created_at, updated_at di tabel pivot)
     }
 }
