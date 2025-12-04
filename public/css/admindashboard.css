@@ -428,3 +428,13 @@ footer {
         padding: 8px 12px;
     }
 }
+/* --- Tambahan Responsif Layout --- */
+* {
+    box-sizing: border-box;
+}
+
+@media (max-width: 991px) {
+    .container-fluid.grow {
+        display: block !important;
+    }
+}
