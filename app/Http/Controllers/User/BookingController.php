@@ -17,7 +17,6 @@ use Illuminate\View\View;
 /**
  * @method void middleware(string|array $middleware, array $options = [])
  */
-
 class BookingController extends Controller
 {
     public function __construct()
@@ -46,7 +45,7 @@ class BookingController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
-        // Cek pending booking lagi
+        // Cek pending booking
         $pendingBooking = Pemesanan::where('user_id', Auth::id())
             ->where('status_pemesanan', 'pending')
             ->first();
@@ -69,7 +68,7 @@ class BookingController extends Controller
 
         try {
             return DB::transaction(function () use ($request, $checkIn, $checkOut) {
-                // Cek Overlap Tanggal
+                // ... (Validasi overlap tanggal TETAP SAMA) ...
                 $isBooked = Pemesanan::where('kamar_id', $request->kamar_id)
                     ->where('status_pemesanan', '!=', 'cancelled')
                     ->where('status_pemesanan', '!=', 'checked_out')
@@ -88,15 +87,28 @@ class BookingController extends Controller
 
                 $kamar = Kamar::with('tipeKamar')->findOrFail($request->kamar_id);
 
-                $in     = Carbon::parse($checkIn);
-                $out    = Carbon::parse($checkOut);
-                $durasi = $in->diffInDays($out) ?: 1;
+                // --- [PERBAIKAN 5] Validasi Tanggal & Durasi ---
+                $in     = Carbon::parse($checkIn)->startOfDay();
+                $out    = Carbon::parse($checkOut)->startOfDay();
+                // Validasi 'after:check_in_date' menjamin diff minimal 1 hari
+                $durasi = $in->diffInDays($out);
 
                 $totalHarga = $kamar->tipeKamar->harga_per_malam * $durasi;
 
+                // Siapkan data fasilitas untuk pivot (agar harga tersimpan)
+                $fasilitasData = [];
                 if ($request->has('fasilitas_ids')) {
-                    $fasilitas  = Fasilitas::whereIn('id_fasilitas', $request->fasilitas_ids)->get();
-                    $totalHarga += $fasilitas->sum('biaya_tambahan');
+                    $fasilitas = Fasilitas::whereIn('id_fasilitas', $request->fasilitas_ids)->get();
+
+                    foreach ($fasilitas as $f) {
+                        $totalHarga += $f->biaya_tambahan;
+
+                        // [PERBAIKAN 1] Siapkan array untuk attach() berisi harga saat ini
+                        $fasilitasData[$f->id_fasilitas] = [
+                            'jumlah' => 1,
+                            'total_harga_fasilitas' => $f->biaya_tambahan // PENTING: Simpan harga historis
+                        ];
+                    }
                 }
 
                 $pemesanan = Pemesanan::create([
@@ -109,8 +121,9 @@ class BookingController extends Controller
                     'status_pemesanan' => 'pending',
                 ]);
 
-                if ($request->has('fasilitas_ids')) {
-                    $pemesanan->fasilitas()->attach($request->fasilitas_ids);
+                // [PERBAIKAN 1] Attach dengan data pivot
+                if (!empty($fasilitasData)) {
+                    $pemesanan->fasilitas()->attach($fasilitasData);
                 }
 
                 return redirect()->route('booking.payment', $pemesanan->id_pemesanan)
@@ -130,21 +143,19 @@ class BookingController extends Controller
             abort(403);
         }
 
+        // Jika sudah tidak pending, lempar ke dashboard
         if ($pemesanan->status_pemesanan !== 'pending') {
             return redirect()->route('dashboard');
         }
 
-        $waktuDibuat    = Carbon::parse($pemesanan->created_at);
-        $batasWaktu     = $waktuDibuat->addMinutes(10);
-        $sisaWaktuDetik = Carbon::now()->diffInSeconds($batasWaktu, false);
-
-        // Jika waktu habis, batalkan otomatis
-        if ($sisaWaktuDetik <= 0) {
-            $pemesanan->update(['status_pemesanan' => 'cancelled']);
-            // FIX: Jangan ubah status fisik kamar, karena availability berdasarkan tanggal.
-
+        // --- [PERBAIKAN 3] Gunakan Method Model untuk Cek Expired ---
+        if ($pemesanan->checkAndCancelIfExpired()) {
             return redirect()->route('dashboard')->with('error', 'Waktu pembayaran telah habis.');
         }
+
+        // Hitung sisa waktu untuk tampilan view
+        $waktuDibuat = Carbon::parse($pemesanan->created_at);
+        $batasWaktu  = $waktuDibuat->addMinutes(10);
 
         return view('user.payment', compact('pemesanan', 'batasWaktu'));
     }
@@ -157,12 +168,8 @@ class BookingController extends Controller
             return response()->json(['status' => 'success']);
         }
 
-        $batasWaktu = Carbon::parse($pemesanan->created_at)->addMinutes(10);
-
-        if (Carbon::now()->greaterThan($batasWaktu)) {
-            $pemesanan->update(['status_pemesanan' => 'cancelled']);
-            // FIX: Jangan ubah status fisik kamar.
-
+        // --- [PERBAIKAN 3] Gunakan Method Model untuk Cek Expired ---
+        if ($pemesanan->checkAndCancelIfExpired()) {
             return response()->json(['status' => 'expired']);
         }
 
@@ -196,7 +203,7 @@ class BookingController extends Controller
         return view('user.pages.order-detail', compact('pemesanan'));
     }
 
-    public function simulatePaymentSuccess($id): RedirectResponse|string
+    public function simulatePaymentSuccess($id): RedirectResponse
     {
         $pemesanan = Pemesanan::with('kamar')->findOrFail($id);
 
@@ -205,6 +212,8 @@ class BookingController extends Controller
             return redirect()->route('dashboard')->with('success', 'Pembayaran Berhasil! Kamar Berhasil Dipesan.');
         }
 
-        return "Pesanan tidak valid atau sudah diproses.";
+        // --- [PERBAIKAN 4] Return Redirect Flash Message, bukan string ---
+        return redirect()->route('dashboard')
+            ->with('error', 'Pesanan tidak valid atau sudah diproses sebelumnya.');
     }
 }

@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Carbon\Carbon;
 
 class Pemesanan extends Model
 {
@@ -30,29 +31,43 @@ class Pemesanan extends Model
         'total_harga'    => 'decimal:2',
     ];
 
-    /**
-     * Relasi ke User (Pemesan).
-     */
+    // ... (Relasi user(), kamar(), fasilitas() TETAP SAMA, tidak perlu diubah) ...
+
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class, 'user_id', 'id');
     }
 
-    /**
-     * Relasi ke Kamar.
-     */
     public function kamar(): BelongsTo
     {
         return $this->belongsTo(Kamar::class, 'kamar_id', 'id_kamar');
     }
 
-    /**
-     * Relasi ke Fasilitas (Pivot).
-     */
     public function fasilitas(): BelongsToMany
     {
         return $this->belongsToMany(Fasilitas::class, 'pemesanan_fasilitas', 'id_pemesanan', 'id_fasilitas')
             ->withPivot('jumlah', 'total_harga_fasilitas')
             ->withTimestamps();
+    }
+
+    /**
+     * [BARU] Cek apakah pesanan kadaluarsa (lebih dari 10 menit).
+     * Mengembalikan true jika pesanan dibatalkan karena expired.
+     */
+    public function checkAndCancelIfExpired(): bool
+    {
+        if ($this->status_pemesanan !== 'pending') {
+            return false;
+        }
+
+        // Batas waktu 10 menit dari created_at
+        $batasWaktu = $this->created_at->addMinutes(10);
+
+        if (Carbon::now()->greaterThan($batasWaktu)) {
+            $this->update(['status_pemesanan' => 'cancelled']);
+            return true;
+        }
+
+        return false;
     }
 }
