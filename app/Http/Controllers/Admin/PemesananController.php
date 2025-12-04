@@ -35,10 +35,11 @@ class PemesananController extends Controller
      */
     public function create(): View
     {
-        $users = User::where('id_role', '!=', 1)->get(); // Opsional: Ambil user selain admin
+        $users = User::where('id_role', '!=', 1)->get();
 
+        // Tampilkan semua kamar yang status fisiknya 'Tersedia' (tidak rusak/maintenance)
         $kamars = Kamar::with('tipeKamar')
-            ->where('status_kamar', 1) // Hanya tampilkan kamar yang tersedia
+            ->where('status_kamar', 1)
             ->orderBy('nomor_kamar', 'asc')
             ->get();
 
@@ -52,7 +53,7 @@ class PemesananController extends Controller
      */
     public function store(Request $request): RedirectResponse
     {
-        // 1. Definisi Rules Dasar
+        // 1. Validasi Input
         $rules = [
             'kamar_id'             => 'required|exists:kamars,id_kamar',
             'check_in_date'        => 'required|date|after_or_equal:today',
@@ -65,7 +66,6 @@ class PemesananController extends Controller
             'customer_type'        => 'required|string|in:existing,new',
         ];
 
-        // Validasi kondisional berdasarkan tipe pelanggan
         if ($request->input('customer_type') === 'new') {
             $rules['new_user_name']  = 'required|string|max:255';
             $rules['new_user_email'] = 'required|string|email|max:255|unique:users,email';
@@ -76,17 +76,41 @@ class PemesananController extends Controller
         $request->validate($rules);
 
         try {
-            // 2. Tentukan User ID (Buat baru atau pakai yang ada)
-            $userId = null;
+            // 2. [PERBAIKAN] Cek Ketersediaan Kamar (Logic Overlap Tanggal)
+            // Ini mencegah Admin melakukan double booking pada kamar yang sama di tanggal yang sama.
+            $checkIn  = $request->input('check_in_date');
+            $checkOut = $request->input('check_out_date');
+            $kamarId  = $request->input('kamar_id');
 
+            $isBooked = Pemesanan::where('kamar_id', $kamarId)
+                ->where('status_pemesanan', '!=', 'cancelled')
+                ->where('status_pemesanan', '!=', 'checked_out') // Asumsi checked_out sudah selesai
+                ->where('status_pemesanan', '!=', 'paid')        // Paid dianggap selesai
+                ->where(function ($query) use ($checkIn, $checkOut) {
+                    $query->where(function ($q) use ($checkIn, $checkOut) {
+                        $q->where('check_in_date', '<', $checkOut)
+                          ->where('check_out_date', '>', $checkIn);
+                    });
+                })
+                ->exists();
+
+            if ($isBooked) {
+                return redirect()->back()
+                    ->with('error', 'Kamar sudah terisi pada tanggal yang dipilih! Silakan pilih kamar atau tanggal lain.')
+                    ->withInput();
+            }
+
+            // 3. Tentukan User ID
+            $userId = null;
             if ($request->input('customer_type') === 'new') {
                 $customerRole = Role::where('nama_role', 'customer')->first();
-                $roleId = $customerRole ? $customerRole->id_role : 2; // Default ke 2 jika tidak ketemu
+                $roleId = $customerRole ? $customerRole->id_role : 2;
 
+                // Note: Sebaiknya kirim email ke user berisi password ini
                 $newUser = User::create([
                     'name'     => $request->input('new_user_name'),
                     'email'    => $request->input('new_user_email'),
-                    'password' => Hash::make('password123'), // Password default
+                    'password' => Hash::make('password123'),
                     'id_role'  => $roleId,
                 ]);
                 $userId = $newUser->id;
@@ -94,25 +118,37 @@ class PemesananController extends Controller
                 $userId = $request->input('user_id');
             }
 
-            // 3. Simpan Pemesanan
+            // 4. Simpan Pemesanan
             $pemesanan = Pemesanan::create([
                 'user_id'          => $userId,
-                'kamar_id'         => $request->input('kamar_id'),
-                'check_in_date'    => $request->input('check_in_date'),
-                'check_out_date'   => $request->input('check_out_date'),
+                'kamar_id'         => $kamarId,
+                'check_in_date'    => $checkIn,
+                'check_out_date'   => $checkOut,
                 'jumlah_tamu'      => $request->input('jumlah_tamu'),
                 'total_harga'      => $request->input('total_harga'),
                 'status_pemesanan' => $request->input('status_pemesanan'),
             ]);
 
-            // 4. Simpan Fasilitas Tambahan (Pivot Table)
+            // 5. [PERBAIKAN] Simpan Fasilitas dengan Harga & Jumlah (Pivot)
             if ($request->has('fasilitas_tambahan')) {
-                $pemesanan->fasilitas()->attach($request->input('fasilitas_tambahan'));
+                $fasilitasIds = $request->input('fasilitas_tambahan');
+                $fasilitasObjs = Fasilitas::whereIn('id_fasilitas', $fasilitasIds)->get();
+
+                $pivotData = [];
+                foreach ($fasilitasObjs as $f) {
+                    $pivotData[$f->id_fasilitas] = [
+                        'jumlah' => 1,
+                        'total_harga_fasilitas' => $f->biaya_tambahan // Menyimpan harga saat transaksi
+                    ];
+                }
+
+                if (!empty($pivotData)) {
+                    $pemesanan->fasilitas()->attach($pivotData);
+                }
             }
 
-            // 5. Update Status Kamar (Menjadi tidak tersedia)
-            $kamar = Kamar::find($request->input('kamar_id'));
-            $kamar->update(['status_kamar' => 0]);
+            // [PERBAIKAN] JANGAN ubah status_kamar menjadi 0.
+            // Ketersediaan dikelola oleh logika tanggal di atas.
 
             return redirect()->route('admin.pemesanans.index')
                 ->with('success', 'Pemesanan berhasil ditambahkan!');
@@ -130,7 +166,6 @@ class PemesananController extends Controller
     public function show(Pemesanan $pemesanan): View
     {
         $pemesanan->load(['user', 'kamar.tipeKamar', 'fasilitas']);
-
         return view('admin.pemesanans.show', compact('pemesanan'));
     }
 
@@ -140,8 +175,8 @@ class PemesananController extends Controller
     public function edit(Pemesanan $pemesanan): View
     {
         $users  = User::all();
-        $kamars = Kamar::all();
-        // Koreksi: menghapus duplikasi query Fasilitas::all()
+        // Ambil semua kamar aktif untuk pilihan pindah kamar
+        $kamars = Kamar::with('tipeKamar')->where('status_kamar', 1)->get();
         $fasilitas = Fasilitas::where('biaya_tambahan', '>', 0)->get();
         $selectedFasilitas = $pemesanan->fasilitas->pluck('id_fasilitas')->toArray();
 
@@ -154,6 +189,7 @@ class PemesananController extends Controller
     public function update(Request $request, Pemesanan $pemesanan): RedirectResponse
     {
         $rules = [
+            'user_id'              => 'required|exists:users,id', // [PERBAIKAN] Admin bisa ganti user
             'kamar_id'             => 'required|exists:kamars,id_kamar',
             'check_in_date'        => 'required|date',
             'check_out_date'       => 'required|date|after:check_in_date',
@@ -166,33 +202,66 @@ class PemesananController extends Controller
         $request->validate($rules);
 
         try {
+            $checkIn  = $request->input('check_in_date');
+            $checkOut = $request->input('check_out_date');
+            $kamarId  = $request->input('kamar_id');
+
+            // [PERBAIKAN] Cek Bentrok saat Update (kecuali punya sendiri)
+            $isBooked = Pemesanan::where('kamar_id', $kamarId)
+                ->where('id_pemesanan', '!=', $pemesanan->id_pemesanan) // Kecuali diri sendiri
+                ->where('status_pemesanan', '!=', 'cancelled')
+                ->where('status_pemesanan', '!=', 'checked_out')
+                ->where('status_pemesanan', '!=', 'paid')
+                ->where(function ($query) use ($checkIn, $checkOut) {
+                    $query->where(function ($q) use ($checkIn, $checkOut) {
+                        $q->where('check_in_date', '<', $checkOut)
+                          ->where('check_out_date', '>', $checkIn);
+                    });
+                })
+                ->exists();
+
+            if ($isBooked) {
+                return redirect()->back()
+                    ->with('error', 'Gagal update: Kamar sudah terisi pada tanggal tersebut.')
+                    ->withInput();
+            }
+
             // Hitung ulang total harga
             $selectedFasilitasIds = $request->input('fasilitas_tambahan', []);
-            $fasilitasTambahanObjects = Fasilitas::whereIn('id_fasilitas', $selectedFasilitasIds)->get();
-            $biayaTambahanTotal = $fasilitasTambahanObjects->sum('biaya_tambahan');
+            $fasilitasObjs = Fasilitas::whereIn('id_fasilitas', $selectedFasilitasIds)->get();
+            $biayaTambahanTotal = $fasilitasObjs->sum('biaya_tambahan');
 
-            $kamar = Kamar::findOrFail($request->input('kamar_id'));
+            $kamar = Kamar::findOrFail($kamarId);
             $hargaPerMalam = $kamar->tipeKamar->harga_per_malam;
 
-            $checkInDate  = Carbon::parse($request->input('check_in_date'));
-            $checkOutDate = Carbon::parse($request->input('check_out_date'));
-            $diffDays     = $checkInDate->diffInDays($checkOutDate);
-            // Minimal 1 hari jika check-in dan check-out di hari yang sama (opsional, tergantung kebijakan)
+            $cIn  = Carbon::parse($checkIn);
+            $cOut = Carbon::parse($checkOut);
+            $diffDays = $cIn->diffInDays($cOut);
             if ($diffDays == 0) $diffDays = 1;
 
             $hargaKamarTotal = $hargaPerMalam * $diffDays;
             $finalTotalHarga = $hargaKamarTotal + $biayaTambahanTotal;
 
+            // [PERBAIKAN] Update User ID juga
             $pemesanan->update([
-                'kamar_id'         => $request->input('kamar_id'),
-                'check_in_date'    => $request->input('check_in_date'),
-                'check_out_date'   => $request->input('check_out_date'),
+                'user_id'          => $request->input('user_id'),
+                'kamar_id'         => $kamarId,
+                'check_in_date'    => $checkIn,
+                'check_out_date'   => $checkOut,
                 'jumlah_tamu'      => $request->input('jumlah_tamu'),
                 'total_harga'      => $finalTotalHarga,
                 'status_pemesanan' => $request->input('status_pemesanan'),
             ]);
 
-            $pemesanan->fasilitas()->sync($selectedFasilitasIds);
+            // [PERBAIKAN] Sync Fasilitas dengan Data Pivot
+            $pivotData = [];
+            foreach ($fasilitasObjs as $f) {
+                $pivotData[$f->id_fasilitas] = [
+                    'jumlah' => 1,
+                    'total_harga_fasilitas' => $f->biaya_tambahan
+                ];
+            }
+            $pemesanan->fasilitas()->sync($pivotData);
 
             return redirect()->route('admin.pemesanans.index')
                 ->with('success', 'Pemesanan berhasil diperbarui!');
@@ -200,46 +269,27 @@ class PemesananController extends Controller
         } catch (ValidationException $e) {
             return redirect()->back()->withErrors($e->errors())->withInput();
         } catch (\Exception $e) {
-            return redirect()->back()->with('error', 'Terjadi kesalahan saat memperbarui pemesanan: ' . $e->getMessage())->withInput();
+            return redirect()->back()->with('error', 'Terjadi kesalahan: ' . $e->getMessage())->withInput();
         }
     }
 
-    /**
-     * Mengubah status pemesanan menjadi 'confirmed'.
-     */
+    // ... (Method confirm & checkIn tetap sama, aman untuk dipakai) ...
     public function confirm(Pemesanan $pemesanan): RedirectResponse
     {
-        try {
-            if ($pemesanan->status_pemesanan === 'pending') {
-                $pemesanan->status_pemesanan = 'confirmed';
-                $pemesanan->save();
-
-                return redirect()->back()->with('success', 'Pemesanan berhasil dikonfirmasi!');
-            }
-
-            return redirect()->back()->with('error', 'Pemesanan tidak dapat dikonfirmasi karena statusnya bukan "Pending".');
-        } catch (\Exception $e) {
-            return redirect()->back()->with('error', 'Terjadi kesalahan: ' . $e->getMessage());
+        if ($pemesanan->status_pemesanan === 'pending') {
+            $pemesanan->update(['status_pemesanan' => 'confirmed']);
+            return redirect()->back()->with('success', 'Pemesanan dikonfirmasi!');
         }
+        return redirect()->back()->with('error', 'Hanya status Pending yang bisa dikonfirmasi.');
     }
 
-    /**
-     * Mengubah status pemesanan menjadi 'checked_in'.
-     */
     public function checkIn(Pemesanan $pemesanan): RedirectResponse
     {
-        try {
-            if ($pemesanan->status_pemesanan === 'confirmed') {
-                $pemesanan->status_pemesanan = 'checked_in';
-                $pemesanan->save();
-
-                return redirect()->back()->with('success', 'Pemesanan berhasil di-check in!');
-            }
-
-            return redirect()->back()->with('error', 'Pemesanan tidak dapat di-check in karena statusnya bukan "Confirmed".');
-        } catch (\Exception $e) {
-            return redirect()->back()->with('error', 'Terjadi kesalahan: ' . $e->getMessage());
+        if ($pemesanan->status_pemesanan === 'confirmed') {
+            $pemesanan->update(['status_pemesanan' => 'checked_in']);
+            return redirect()->back()->with('success', 'Tamu berhasil Check-In!');
         }
+        return redirect()->back()->with('error', 'Harus Confirmed sebelum Check-In.');
     }
 
     /**
@@ -249,24 +299,23 @@ class PemesananController extends Controller
     {
         try {
             if ($pemesanan->status_pemesanan === 'checked_in') {
+
+                // Opsional: Jika checkout lebih awal, update tanggal check_out_date agar kamar bisa dipakai besoknya
+                // $pemesanan->check_out_date = Carbon::now();
+
                 $pemesanan->status_pemesanan = 'paid';
-                // Opsional: Set check_out_date real-time di sini jika diperlukan
                 $pemesanan->save();
 
-                // Kembalikan status kamar menjadi tersedia
-                $kamar = $pemesanan->kamar;
-                if ($kamar) {
-                    $kamar->status_kamar = 1; // Tersedia
-                    $kamar->save();
-                }
+                // [PERBAIKAN] Hapus kode pengubahan status_kamar.
+                // Kamar otomatis tersedia untuk tanggal di luar range check_in - check_out.
 
                 return redirect()->route('admin.dashboard')
-                    ->with('success', 'Check out berhasil. Transaksi selesai (Pembayaran Lunas).');
+                    ->with('success', 'Check out berhasil. Transaksi selesai.');
             }
 
-            return redirect()->back()->with('error', 'Pemesanan tidak dapat di-check out karena statusnya bukan "Checked In".');
+            return redirect()->back()->with('error', 'Pemesanan belum Check-In.');
         } catch (\Exception $e) {
-            return redirect()->back()->with('error', 'Terjadi kesalahan saat check out: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Error: ' . $e->getMessage());
         }
     }
 
@@ -283,18 +332,12 @@ class PemesananController extends Controller
         return view('admin.riwayat.pemesanan', compact('riwayatPemesanan'));
     }
 
-    /**
-     * Menampilkan detail riwayat pemesanan.
-     */
     public function detailRiwayat($id)
     {
         $pemesanan = Pemesanan::with(['user', 'kamar.tipeKamar', 'fasilitas'])->findOrFail($id);
-
         if (!in_array($pemesanan->status_pemesanan, ['paid', 'cancelled'])) {
-            return redirect()->route('admin.pemesanans.index')
-                ->with('error', 'Pesanan ini masih aktif, bukan riwayat.');
+            return redirect()->route('admin.pemesanans.index')->with('error', 'Bukan data riwayat.');
         }
-
         return view('admin.riwayat.detail', compact('pemesanan'));
     }
 
@@ -304,38 +347,31 @@ class PemesananController extends Controller
     public function destroy(Pemesanan $pemesanan): RedirectResponse
     {
         try {
-            // 1. Validasi: Jangan hapus data transaksi lunas
+            // Validasi: Paid tidak boleh dihapus (Data Keuangan)
             if ($pemesanan->status_pemesanan === 'paid') {
-                return redirect()->back()
-                    ->with('error', 'ILLEGAL ACTION: Transaksi yang sudah lunas (Paid) tidak boleh dihapus.');
+                return redirect()->back()->with('error', 'Transaksi lunas (Paid) tidak boleh dihapus demi arsip keuangan.');
             }
 
-            // 2. Validasi: Hapus Confirmed/Checked In hanya jika lewat tanggal checkout
+            // Validasi: Aktif tidak boleh dihapus sembarangan
             if (in_array($pemesanan->status_pemesanan, ['confirmed', 'checked_in'])) {
-                $checkOutDate = Carbon::parse($pemesanan->check_out_date)->endOfDay();
+                $today = Carbon::now()->startOfDay();
+                $checkOut = Carbon::parse($pemesanan->check_out_date)->startOfDay();
 
-                if (Carbon::now()->lessThan($checkOutDate)) {
-                    return redirect()->back()
-                        ->with('error', 'Gagal Hapus: Pemesanan aktif hanya dapat dihapus setelah melewati tanggal checkout.');
+                if ($today->lt($checkOut)) {
+                    return redirect()->back()->with('error', 'Pesanan sedang berjalan/aktif. Lakukan Checkout atau Cancel terlebih dahulu.');
                 }
             }
 
-            // 3. Kembalikan Status Kamar Jadi Tersedia
-            $kamar = $pemesanan->kamar;
-            if ($kamar) {
-                $kamar->status_kamar = 1; // Tersedia
-                $kamar->save();
-            }
+            // [PERBAIKAN] Hapus kode pengubahan status_kamar.
 
-            // 4. Hapus Data
             $pemesanan->fasilitas()->detach();
             $pemesanan->delete();
 
             return redirect()->route('admin.pemesanans.index')
-                ->with('success', 'Pemesanan berhasil dihapus dan kamar kini tersedia kembali!');
+                ->with('success', 'Data pemesanan berhasil dihapus.');
 
         } catch (\Exception $e) {
-            return redirect()->back()->with('error', 'Terjadi kesalahan saat menghapus pemesanan: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Gagal hapus: ' . $e->getMessage());
         }
     }
 }
