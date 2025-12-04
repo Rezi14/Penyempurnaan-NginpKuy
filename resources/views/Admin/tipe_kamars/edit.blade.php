@@ -27,7 +27,6 @@
                 @endif
 
                 {{-- Form Edit Tipe Kamar --}}
-                {{-- PENTING: enctype="multipart/form-data" wajib ada untuk upload file --}}
                 <form action="{{ route('admin.tipe_kamars.update', $tipeKamar->id_tipe_kamar) }}" method="POST" enctype="multipart/form-data">
                     @csrf
                     @method('PUT')
@@ -44,6 +43,14 @@
                             <input type="number" step="0.01" class="form-control" id="harga_per_malam" name="harga_per_malam" value="{{ old('harga_per_malam', $tipeKamar->harga_per_malam) }}" required>
                         </div>
                     </div>
+
+                    {{-- PERUBAHAN: Tambahan Input Kapasitas --}}
+                    <div class="mb-3">
+                        <label for="kapasitas" class="form-label">Kapasitas (Orang)</label>
+                        <input type="number" class="form-control" id="kapasitas" name="kapasitas" value="{{ old('kapasitas', $tipeKamar->kapasitas) }}" required min="1">
+                        <div class="form-text">Jumlah maksimal orang yang diperbolehkan dalam satu kamar.</div>
+                    </div>
+                    {{-- AKHIR PERUBAHAN --}}
 
                     <div class="mb-3">
                         <label for="deskripsi" class="form-label">Deskripsi</label>
