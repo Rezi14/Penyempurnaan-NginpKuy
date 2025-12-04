@@ -25,12 +25,9 @@ class BookingController extends Controller
         $this->middleware('auth');
     }
 
-    /**
-     * Menampilkan form booking.
-     */
     public function showBookingForm(Kamar $kamar): View|RedirectResponse
     {
-        // 1. Cek pending booking user saat ini
+        // Cek pending booking
         $pendingBooking = Pemesanan::where('user_id', Auth::id())
             ->where('status_pemesanan', 'pending')
             ->first();
@@ -41,21 +38,15 @@ class BookingController extends Controller
         }
 
         $kamar->load('tipeKamar');
-
-        // Ambil kapasitas maksimal dari relasi tipe kamar
         $maxTamu = $kamar->tipeKamar->kapasitas;
-
         $fasilitasTersedia = Fasilitas::where('biaya_tambahan', '>', 0)->get();
 
         return view('user.booking', compact('kamar', 'fasilitasTersedia', 'maxTamu'));
     }
 
-    /**
-     * Memproses penyimpanan pemesanan baru.
-     */
     public function store(Request $request): RedirectResponse
     {
-        // 1. Cek pending booking user saat ini (biar ga numpuk)
+        // Cek pending booking lagi
         $pendingBooking = Pemesanan::where('user_id', Auth::id())
             ->where('status_pemesanan', 'pending')
             ->first();
@@ -78,20 +69,17 @@ class BookingController extends Controller
 
         try {
             return DB::transaction(function () use ($request, $checkIn, $checkOut) {
-
-                // --- LOGIKA: Cek Overlap Tanggal ---
-                // Cek apakah ada pesanan lain di kamar ini yang tanggalnya bertabrakan
+                // Cek Overlap Tanggal
                 $isBooked = Pemesanan::where('kamar_id', $request->kamar_id)
                     ->where('status_pemesanan', '!=', 'cancelled')
                     ->where('status_pemesanan', '!=', 'checked_out')
                     ->where(function ($query) use ($checkIn, $checkOut) {
                         $query->where(function ($q) use ($checkIn, $checkOut) {
-                            // Kasus: Tanggal Check-in baru ada di antara periode booking orang lain
                             $q->where('check_in_date', '<', $checkOut)
                               ->where('check_out_date', '>', $checkIn);
                         });
                     })
-                    ->lockForUpdate() // Mencegah race condition
+                    ->lockForUpdate()
                     ->exists();
 
                 if ($isBooked) {
@@ -100,7 +88,6 @@ class BookingController extends Controller
 
                 $kamar = Kamar::with('tipeKamar')->findOrFail($request->kamar_id);
 
-                // Hitung durasi & harga
                 $in     = Carbon::parse($checkIn);
                 $out    = Carbon::parse($checkOut);
                 $durasi = $in->diffInDays($out) ?: 1;
@@ -112,7 +99,6 @@ class BookingController extends Controller
                     $totalHarga += $fasilitas->sum('biaya_tambahan');
                 }
 
-                // Buat Pemesanan
                 $pemesanan = Pemesanan::create([
                     'user_id'          => Auth::id(),
                     'kamar_id'         => $kamar->id_kamar,
@@ -136,14 +122,10 @@ class BookingController extends Controller
         }
     }
 
-    /**
-     * Menampilkan halaman pembayaran.
-     */
     public function showPayment($id): View|RedirectResponse
     {
         $pemesanan = Pemesanan::with(['kamar.tipeKamar'])->findOrFail($id);
 
-        // Pastikan user hanya bisa melihat pembayarannya sendiri
         if ($pemesanan->user_id !== Auth::id()) {
             abort(403);
         }
@@ -159,13 +141,7 @@ class BookingController extends Controller
         // Jika waktu habis, batalkan otomatis
         if ($sisaWaktuDetik <= 0) {
             $pemesanan->update(['status_pemesanan' => 'cancelled']);
-
-            // Mengembalikan status kamar (jika diperlukan oleh logika lain)
-            $kamar = $pemesanan->kamar;
-            if ($kamar) {
-                $kamar->status_kamar = 1;
-                $kamar->save();
-            }
+            // FIX: Jangan ubah status fisik kamar, karena availability berdasarkan tanggal.
 
             return redirect()->route('dashboard')->with('error', 'Waktu pembayaran telah habis.');
         }
@@ -173,9 +149,6 @@ class BookingController extends Controller
         return view('user.payment', compact('pemesanan', 'batasWaktu'));
     }
 
-    /**
-     * Cek status pembayaran secara real-time (Ajax).
-     */
     public function checkPaymentStatus($id): JsonResponse
     {
         $pemesanan = Pemesanan::findOrFail($id);
@@ -188,12 +161,7 @@ class BookingController extends Controller
 
         if (Carbon::now()->greaterThan($batasWaktu)) {
             $pemesanan->update(['status_pemesanan' => 'cancelled']);
-
-            $kamar = $pemesanan->kamar;
-            if ($kamar) {
-                $kamar->status_kamar = 1;
-                $kamar->save();
-            }
+            // FIX: Jangan ubah status fisik kamar.
 
             return response()->json(['status' => 'expired']);
         }
@@ -205,25 +173,18 @@ class BookingController extends Controller
         return response()->json(['status' => 'pending']);
     }
 
-    /**
-     * Membatalkan booking secara manual oleh user.
-     */
     public function cancelBooking($id): RedirectResponse
     {
         $pemesanan = Pemesanan::findOrFail($id);
 
         if ($pemesanan->user_id == Auth::id() && $pemesanan->status_pemesanan == 'pending') {
             $pemesanan->update(['status_pemesanan' => 'cancelled']);
-
             return redirect()->route('dashboard')->with('success', 'Pesanan dibatalkan.');
         }
 
         return back();
     }
 
-    /**
-     * Menampilkan detail booking.
-     */
     public function detail($id): View
     {
         $pemesanan = Pemesanan::with(['kamar.tipeKamar', 'user', 'fasilitas'])->findOrFail($id);
@@ -235,9 +196,6 @@ class BookingController extends Controller
         return view('user.pages.order-detail', compact('pemesanan'));
     }
 
-    /**
-     * Simulasi sukses bayar (Dev Only).
-     */
     public function simulatePaymentSuccess($id): RedirectResponse|string
     {
         $pemesanan = Pemesanan::with('kamar')->findOrFail($id);

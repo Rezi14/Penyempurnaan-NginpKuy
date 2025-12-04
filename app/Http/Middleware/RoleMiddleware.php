@@ -14,16 +14,16 @@ class RoleMiddleware
      */
     public function handle(Request $request, Closure $next, $role): Response
     {
-        // // 1. Cek apakah user login
-        // if (!Auth::check()) {
-        //     return redirect('login');
-        // }
+        // 1. Cek apakah user login
+        if (!Auth::check()) {
+            return redirect()->route('login');
+        }
 
-        // // 2. Cek apakah role user sesuai dengan parameter route
-        // // Asumsi: Di tabel users ada kolom 'role' (admin/user)
-        // if (Auth::user()->role !== $role) {
-        //     abort(403, 'Anda tidak memiliki akses ke halaman ini.');
-        // }
+        // 2. Cek apakah role user sesuai dengan parameter route
+        // Menggunakan fungsi hasRole() yang sudah ada di model User
+        if (! $request->user()->hasRole($role)) {
+            abort(403, 'Anda tidak memiliki akses ke halaman ini.');
+        }
 
         return $next($request);
     }
