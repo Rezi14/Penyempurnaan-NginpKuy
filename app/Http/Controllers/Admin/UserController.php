@@ -42,10 +42,10 @@ class UserController extends Controller
     {
         // 1. Validasi Input
         $validatedData = $request->validate([
-            'name'     => ['required', 'string', 'max:255'],
-            'email'    => ['required', 'string', 'email', 'max:255', Rule::unique('users', 'email')],
+            'name' => ['required', 'string', 'max:255'],
+            'email' => ['required', 'string', 'email', 'max:255', Rule::unique('users', 'email')],
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
-            'id_role'  => ['required', 'exists:roles,id_role'],
+            'id_role' => ['required', 'exists:roles,id_role'],
         ]);
 
         // 2. Proteksi Tambahan: Cek agar tidak ada yang mem-bypass form untuk jadi admin
@@ -89,8 +89,8 @@ class UserController extends Controller
     {
         // 1. Validasi Input
         $rules = [
-            'name'    => ['required', 'string', 'max:255'],
-            'email'   => [
+            'name' => ['required', 'string', 'max:255'],
+            'email' => [
                 'required',
                 'string',
                 'email',
@@ -118,8 +118,8 @@ class UserController extends Controller
 
         // 3. Update Data
         $dataToUpdate = [
-            'name'    => $validatedData['name'],
-            'email'   => $validatedData['email'],
+            'name' => $validatedData['name'],
+            'email' => $validatedData['email'],
             'id_role' => $validatedData['id_role'],
         ];
 

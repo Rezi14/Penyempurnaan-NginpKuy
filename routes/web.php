@@ -119,7 +119,13 @@ Route::middleware('auth')->group(function () {
             Route::resource('kamars', KamarController::class);
             Route::resource('tipe_kamars', TipeKamarController::class);
             Route::resource('users', UserController::class);
-            Route::resource('fasilitas', FasilitasController::class);
+
+            // PERBAIKAN: Tambahkan parameters untuk memaksa nama parameter menjadi 'fasilitas'
+            // Ini mencegah Laravel mengubahnya menjadi 'fasilita' (singular default)
+            Route::resource('fasilitas', FasilitasController::class)->parameters([
+                'fasilitas' => 'fasilitas'
+            ]);
+
             Route::resource('pemesanans', PemesananController::class);
 
             // Aksi khusus pemesanan
@@ -127,10 +133,10 @@ Route::middleware('auth')->group(function () {
                 ->prefix('pemesanans/{pemesanan}')
                 ->name('pemesanans.')
                 ->group(function () {
-                    Route::patch('/checkin', 'checkIn')->name('checkin');
-                    Route::patch('/checkout', 'checkout')->name('checkout');
-                    Route::patch('/confirm', 'confirm')->name('confirm');
-                });
+                Route::patch('/checkin', 'checkIn')->name('checkin');
+                Route::patch('/checkout', 'checkout')->name('checkout');
+                Route::patch('/confirm', 'confirm')->name('confirm');
+            });
 
             // Riwayat
             Route::get('riwayat/pemesanan', [PemesananController::class, 'riwayat'])->name('riwayat.pemesanan');

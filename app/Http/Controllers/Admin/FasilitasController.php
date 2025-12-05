@@ -36,9 +36,9 @@ class FasilitasController extends Controller
     {
         $validatedData = $request->validate([
             'nama_fasilitas' => ['required', 'string', 'max:255', Rule::unique('fasilitas', 'nama_fasilitas')],
-            'deskripsi'      => ['nullable', 'string'],
+            'deskripsi' => ['nullable', 'string'],
             'biaya_tambahan' => ['nullable', 'numeric', 'min:0'],
-            'icon'           => ['nullable', 'string', 'max:255'],
+            'icon' => ['nullable', 'string', 'max:255'],
         ]);
 
         try {
@@ -80,9 +80,9 @@ class FasilitasController extends Controller
                 'max:255',
                 Rule::unique('fasilitas', 'nama_fasilitas')->ignore($fasilitas->id_fasilitas, 'id_fasilitas'),
             ],
-            'deskripsi'      => ['nullable', 'string'],
+            'deskripsi' => ['nullable', 'string'],
             'biaya_tambahan' => ['nullable', 'numeric', 'min:0'],
-            'icon'           => ['nullable', 'string', 'max:255'],
+            'icon' => ['nullable', 'string', 'max:255'],
         ]);
 
         try {

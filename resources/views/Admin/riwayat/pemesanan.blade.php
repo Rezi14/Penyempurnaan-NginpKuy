@@ -20,7 +20,7 @@
 
         {{-- Header Halaman --}}
         <div class="d-flex justify-content-between align-items-center mb-4">
-            <h2 class="mb-0">Riwayat Transaksi</h2>
+            <h2 class="mb-0">Riwayat Pemesanan</h2>
         </div>
 
         {{-- Tabel Riwayat Transaksi --}}

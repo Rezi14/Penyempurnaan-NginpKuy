@@ -27,6 +27,7 @@
                 @endif
 
                 {{-- Form Edit Pengguna --}}
+                {{-- PERBAIKAN 1: Gunakan $user->id (PK User), bukan $user->id_role --}}
                 <form action="{{ route('admin.users.update', $user->id) }}" method="POST">
                     @csrf
                     @method('PUT') {{-- Wajib untuk metode PUT pada update --}}
@@ -57,11 +58,12 @@
 
                     {{-- Peran (Role) --}}
                     <div class="mb-3">
-                        <label for="role_id" class="form-label">Peran</label>
-                        <select class="form-select" id="role_id" name="role_id" required>
+                        <label for="id_role" class="form-label">Peran</label>
+                        <select class="form-select" id="id_role" name="id_role" required>
                             <option value="">Pilih Peran</option>
                             @foreach ($roles as $role)
-                                <option value="{{ $role->id }}" {{ old('role_id', $user->role_id) == $role->id ? 'selected' : '' }}>
+                                {{-- PERBAIKAN 2: Gunakan $role->id_role (PK Role), bukan $role->id --}}
+                                <option value="{{ $role->id_role }}" {{ old('id_role', $user->id_role) == $role->id_role ? 'selected' : '' }}>
                                     {{ $role->nama_role }}
                                 </option>
                             @endforeach

@@ -27,10 +27,15 @@
                 @endif
 
                 {{-- Form Edit Fasilitas --}}
-                {{-- Perbaikan pada route parameter agar sesuai dengan resource controller Laravel ('fasilitas') --}}
-                <form action="{{ route('admin.fasilitas.update', $fasilitas->id_fasilitas) }}" method="POST">
+                {{--
+                    PERBAIKAN:
+                    1. Pastikan Model Fasilitas sudah memiliki 'protected $primaryKey = "id_fasilitas";'
+                    2. Kita bisa passing object $fasilitas langsung, atau parameter array eksplisit.
+                       Untuk mengatasi error 'Missing parameter: fasilita', kita gunakan array mapping:
+                --}}
+                <form action="{{ route('admin.fasilitas.update', ['fasilitas' => $fasilitas->id_fasilitas]) }}" method="POST">
                     @csrf
-                    @method('PUT') {{-- Wajib untuk metode PUT pada update --}}
+                    @method('PUT')
 
                     {{-- Nama Fasilitas --}}
                     <div class="mb-3">
