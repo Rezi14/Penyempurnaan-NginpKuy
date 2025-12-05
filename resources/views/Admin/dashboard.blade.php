@@ -22,7 +22,7 @@
         <div class="card p-4 mb-4 card-welcome w-100">
             <div class="card-body">
                 <h2 class="card-title mb-3">Selamat Datang, Admin {{ Auth::user()->name }}!</h2>
-                <p class="card-text fs-5">Panel Kontrol Administrasi Hotel NginapKuy.</p>
+                <p class="card-text fs-5">Panel Kontrol Administrasi Hotel Roomify.</p>
             </div>
         </div>
 
